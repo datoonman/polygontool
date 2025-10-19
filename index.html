@@ -74,6 +74,51 @@
             font-size: 0.85em;
             color: #64748b;
             font-weight: 500;
+            position: relative;
+            cursor: help;
+        }
+
+        .mode-label:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+            z-index: 100;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #1e293b;
+        }
+
+        .mode-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+            background: #e0e7ff;
+            color: #3730a3;
         }
 
         .toggle-switch {
@@ -161,6 +206,51 @@
             border-radius: 12px;
             position: relative;
             overflow: hidden;
+        }
+
+        .coord-bubble {
+            position: absolute;
+            background: #1e293b;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: default;
+        }
+
+        .coord-bubble.active {
+            opacity: 1;
+        }
+
+        .coord-bubble.locked {
+            background: #2563eb;
+            pointer-events: auto;
+            cursor: move;
+        }
+
+        .coord-bubble.dragging {
+            cursor: grabbing;
+        }
+
+        .coord-bubble::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1e293b;
+        }
+
+        .coord-bubble.locked::after {
+            border-top-color: #2563eb;
         }
 
         .map-canvas {
@@ -285,10 +375,11 @@
         }
 
         .json-display-title {
-            font-size: 0.9em;
+            font-size: 1em;
             font-weight: 600;
             color: #475569;
-            margin-bottom: 8px;
+            margin-top: 24px;
+            margin-bottom: 12px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
@@ -320,14 +411,64 @@
             font-weight: 600;
             font-size: 1em;
             transition: all 0.3s;
-            margin-top: 15px;
-            width: 100%;
         }
 
         .btn-primary:hover {
             background: #1e40af;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #2563eb;
+            border: 2px solid #2563eb;
+            padding: 12px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: #eff6ff;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .button-group button {
+            flex: 1;
+            margin: 0;
+        }
+
+        .format-hint {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #1e40af;
+        }
+
+        .format-hint strong {
+            color: #1e3a8a;
+        }
+
+        .warning-badge {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+            display: inline-block;
         }
 
         .upload-zone {
@@ -599,6 +740,63 @@
             margin: 16px 0;
         }
 
+        .version-section {
+            border-left: 3px solid #2563eb;
+            padding-left: 16px;
+            margin: 16px 0;
+        }
+
+        .version-header {
+            font-weight: 600;
+            color: #2563eb;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .version-header:hover {
+            color: #1e40af;
+        }
+
+        .version-badge {
+            background: #2563eb;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .version-content {
+            margin-top: 8px;
+        }
+
+        .version-content.collapsed {
+            display: none;
+        }
+
+        .version-item {
+            margin: 6px 0;
+            color: #475569;
+        }
+
+        .show-more-btn {
+            background: #eff6ff;
+            color: #2563eb;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 16px 0;
+        }
+
+        .show-more-btn:hover {
+            background: #dbeafe;
+        }
+
         @media (max-width: 1024px) {
             .single-layout {
                 grid-template-columns: 1fr;
@@ -683,9 +881,16 @@
         <div class="controls">
             <div class="toggle-group">
                 <span class="toggle-label">Coordinate Mode:</span>
-                <span class="mode-label">Origin (Lat, Long)</span>
+                <span class="mode-label">
+                    Origin (Lat, Long)
+                    <span class="tooltip">Coordinates are [Latitude, Longitude]</span>
+                </span>
                 <div class="toggle-switch" id="coordToggle"></div>
-                <span class="mode-label">Orbit (Long, Lat)</span>
+                <span class="mode-label">
+                    Orbit (Long, Lat)
+                    <span class="tooltip">Coordinates are [Longitude, Latitude]</span>
+                </span>
+                <span class="mode-indicator" id="modeIndicator">Origin Mode</span>
             </div>
 
             <div class="mode-selector">
@@ -699,8 +904,9 @@
                 <div class="single-layout">
                     <div>
                         <h3 style="margin-bottom: 12px; color: #1e293b;">Visualization</h3>
-                        <div class="map-container">
+                        <div class="map-container" id="mapContainer">
                             <canvas class="map-canvas" id="singleCanvas"></canvas>
+                            <div class="coord-bubble" id="coordBubble"></div>
                         </div>
                         <div id="singleResults"></div>
                     </div>
@@ -710,10 +916,17 @@
                         <div class="json-input-container">
                             <textarea class="json-input" id="jsonInput" placeholder='{"type":"Polygon","coordinates":[[[6.233,0.700],...]]]}'></textarea>
                         </div>
-                        <button class="btn-primary" onclick="validateSingle()">Validate Polygon</button>
+                        <div class="format-hint" id="formatHint">
+                            <strong>Expected format:</strong> <span id="formatHintText">[Latitude, Longitude]</span>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn-primary" onclick="validateSingle()">Validate Polygon</button>
+                            <button class="btn-secondary" onclick="autoClosePolygon()">Auto-Close</button>
+                            <button class="btn-secondary" onclick="clearSingle()">Clear</button>
+                        </div>
                         
                         <div id="jsonDisplay" class="hidden">
-                            <div class="json-display-title">Currently checking this JSON:</div>
+                            <div class="json-display-title">Polygon Summary:</div>
                             <div class="json-display" id="jsonDisplayContent"></div>
                         </div>
                     </div>
@@ -862,6 +1075,123 @@
 
                 <h3>📏 Polygon Shape Column</h3>
                 <p>This column displays the geometry type from your GeoJSON (typically "Polygon"). If the data contains a Point instead of a Polygon, it will show "Point".</p>
+
+                <h3>🔧 Version History & Patch Notes</h3>
+                
+                <div class="version-section">
+                    <div class="version-header" onclick="toggleVersion('v29')">
+                        <span class="version-badge">v29</span>
+                        <span>Latest - Map Pan & Smooth Zoom</span>
+                        <span id="v29-arrow">▼</span>
+                    </div>
+                    <div class="version-content" id="v29-content">
+                        <div class="version-item">• Added smooth zoom functionality (mouse wheel) with gentle increments</div>
+                        <div class="version-item">• Added map panning - drag anywhere on canvas to reposition view</div>
+                        <div class="version-item">• Locked coordinate bubbles stay in place while panning</div>
+                        <div class="version-item">• Auto-hide node labels for large polygons (100+ nodes) when zoomed out</div>
+                        <div class="version-item">• Smaller node size for dense polygons (100+)</div>
+                        <div class="version-item">• Warning message for large polygons</div>
+                        <div class="version-item">• Improved Polygon Summary spacing</div>
+                    </div>
+                </div>
+
+                <div class="version-section">
+                    <div class="version-header" onclick="toggleVersion('v28')">
+                        <span class="version-badge">v28</span>
+                        <span>Draggable Bubbles & Auto-Close</span>
+                        <span id="v28-arrow">▼</span>
+                    </div>
+                    <div class="version-content collapsed" id="v28-content">
+                        <div class="version-item">• Added draggable coordinate bubbles when locked</div>
+                        <div class="version-item">• Added "Auto-Close" button to complete unclosed polygons</div>
+                        <div class="version-item">• Improved button sizing consistency</div>
+                    </div>
+                </div>
+
+                <div class="version-section">
+                    <div class="version-header" onclick="toggleVersion('v27')">
+                        <span class="version-badge">v27</span>
+                        <span>Coordinate Bubbles & Polygon Summary</span>
+                        <span id="v27-arrow">▼</span>
+                    </div>
+                    <div class="version-content collapsed" id="v27-content">
+                        <div class="version-item">• Added hover bubble showing coordinate details on nodes</div>
+                        <div class="version-item">• Click to lock/unlock coordinate bubble</div>
+                        <div class="version-item">• Replaced JSON display with useful Polygon Summary</div>
+                        <div class="version-item">• Added center point and bounding box calculations</div>
+                        <div class="version-item">• Added "Clear" button</div>
+                    </div>
+                </div>
+
+                <button class="show-more-btn" id="showMoreBtn" onclick="toggleOlderVersions()">Show 3 Earlier Versions</button>
+
+                <div id="olderVersions" style="display: none;">
+                    <div class="version-section">
+                        <div class="version-header" onclick="toggleVersion('v26')">
+                            <span class="version-badge">v26</span>
+                            <span>UI Improvements & Tooltips</span>
+                            <span id="v26-arrow">▼</span>
+                        </div>
+                        <div class="version-content collapsed" id="v26-content">
+                            <div class="version-item">• Added mode indicator badge</div>
+                            <div class="version-item">• Added tooltips for Origin/Orbit modes</div>
+                            <div class="version-item">• Added format hints for expected coordinate order</div>
+                            <div class="version-item">• Improved validation with polygon closure check</div>
+                            <div class="version-item">• Added minimum node count validation</div>
+                        </div>
+                    </div>
+
+                    <div class="version-section">
+                        <div class="version-header" onclick="toggleVersion('v25')">
+                            <span class="version-badge">v25</span>
+                            <span>Hand Rule & Point Detection Fixes</span>
+                            <span id="v25-arrow">▼</span>
+                        </div>
+                        <div class="version-content collapsed" id="v25-content">
+                            <div class="version-item">• Fixed Right Hand Rule calculation using Shoelace formula</div>
+                            <div class="version-item">• Corrected Point geometry detection</div>
+                            <div class="version-item">• Fixed node count to exclude closing duplicate</div>
+                            <div class="version-item">• Fixed first node rendering (now draws on top in orange)</div>
+                        </div>
+                    </div>
+
+                    <div class="version-section">
+                        <div class="version-header" onclick="toggleVersion('v24')">
+                            <span class="version-badge">v24</span>
+                            <span>Initial Release</span>
+                            <span id="v24-arrow">▼</span>
+                        </div>
+                        <div class="version-content collapsed" id="v24-content">
+                            <div class="version-item">• Single polygon validation</div>
+                            <div class="version-item">• Bulk upload (CSV, Excel)</div>
+                            <div class="version-item">• Origin/Orbit coordinate mode switching</div>
+                            <div class="version-item">• Visual polygon rendering with numbered nodes</div>
+                            <div class="version-item">• Validation: self-intersection, duplicates, hand rule</div>
+                            <div class="version-item">• Mobile-responsive design</div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    function toggleVersion(versionId) {
+                        const content = document.getElementById(versionId + '-content');
+                        const arrow = document.getElementById(versionId + '-arrow');
+                        content.classList.toggle('collapsed');
+                        arrow.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+                    }
+
+                    function toggleOlderVersions() {
+                        const olderVersions = document.getElementById('olderVersions');
+                        const btn = document.getElementById('showMoreBtn');
+                        if (olderVersions.style.display === 'none') {
+                            olderVersions.style.display = 'block';
+                            btn.textContent = 'Hide Earlier Versions';
+                        } else {
+                            olderVersions.style.display = 'none';
+                            btn.textContent = 'Show 3 Earlier Versions';
+                        }
+                    }
+                </script>
             </div>
         </div>
     </div>
@@ -874,11 +1204,29 @@
         let originalPolygonCoords = null;
         let hoveredNodeIndex = null;
         let currentCanvasId = null;
+        let lockedNodeIndex = null;
+        let isDraggingBubble = false;
+        let bubbleDragStartX = 0;
+        let bubbleDragStartY = 0;
+        let bubbleOffsetX = 0;
+        let bubbleOffsetY = 0;
+        
+        // Map panning and zooming
+        let zoomLevel = 1;
+        let panOffsetX = 0;
+        let panOffsetY = 0;
+        let isDraggingMap = false;
+        let mapDragStartX = 0;
+        let mapDragStartY = 0;
 
         document.getElementById('coordToggle').addEventListener('click', function() {
             this.classList.toggle('active');
             const wasOrbitMode = isOrbitMode;
             isOrbitMode = this.classList.contains('active');
+            
+            // Update mode indicator
+            document.getElementById('modeIndicator').textContent = isOrbitMode ? 'Orbit Mode' : 'Origin Mode';
+            document.getElementById('formatHintText').textContent = isOrbitMode ? '[Longitude, Latitude]' : '[Latitude, Longitude]';
             
             if (currentMode === 'single') {
                 const jsonInput = document.getElementById('jsonInput');
@@ -887,6 +1235,10 @@
                 if (jsonValue) {
                     try {
                         const polygon = JSON.parse(jsonValue);
+                        // Don't swap if it's a Point
+                        if (polygon.type === 'Point') {
+                            return;
+                        }
                         if (polygon.coordinates && polygon.coordinates[0]) {
                             polygon.coordinates[0] = polygon.coordinates[0].map(coord => [coord[1], coord[0]]);
                             jsonInput.value = JSON.stringify(polygon);
@@ -989,6 +1341,12 @@
                     const polygon = JSON.parse(polygonStr);
                     result.polygon = polygon;
                     
+                    // Check if it's a Point type
+                    if (polygon.type === 'Point') {
+                        result.states.push({text: 'Point', type: 'warning'});
+                        return result;
+                    }
+                    
                     if (!polygon.coordinates || !polygon.coordinates[0]) {
                         result.states.push({text: 'Invalid Format', type: 'error'});
                         return result;
@@ -996,11 +1354,13 @@
 
                     const coords = polygon.coordinates[0];
                     
-                    if (coords.length === 1) {
-                        result.states.push({text: 'Point', type: 'warning'});
+                    if (coords.length < 1) {
+                        result.states.push({text: 'No Coordinates', type: 'error'});
                         return result;
                     }
 
+                    // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
+                    // Orbit mode: input is [Long, Lat], use as-is
                     const convertedCoords = coords.map(coord => {
                         return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
                     });
@@ -1052,6 +1412,19 @@
             try {
                 const polygon = JSON.parse(jsonInput);
                 
+                // Check if it's a Point type FIRST before accessing coordinates[0]
+                if (polygon.type === 'Point') {
+                    displaySingleResults(polygon, {states: [{text: 'Point', type: 'warning'}], handRule: ''}, 1);
+                    
+                    const canvas = document.getElementById('singleCanvas');
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    document.getElementById('jsonDisplay').classList.remove('hidden');
+                    document.getElementById('jsonDisplayContent').innerHTML = '<pre style="margin: 0; font-family: inherit;">' + JSON.stringify(polygon, null, 2) + '</pre>';
+                    return;
+                }
+                
                 if (!polygon.coordinates || !polygon.coordinates[0]) {
                     alert('Invalid polygon format');
                     return;
@@ -1059,6 +1432,8 @@
 
                 const coords = polygon.coordinates[0];
                 
+                // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
+                // Orbit mode: input is [Long, Lat], use as-is
                 originalPolygonCoords = coords.map(coord => {
                     return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
                 });
@@ -1067,6 +1442,12 @@
                 const validation = validatePolygon(originalPolygonCoords);
                 
                 displaySingleResults(polygon, validation, coords.length);
+                
+                // Reset zoom and pan
+                zoomLevel = 1;
+                panOffsetX = 0;
+                panOffsetY = 0;
+                
                 drawPolygon('singleCanvas', originalPolygonCoords);
                 displayJsonWithHighlight(polygon);
             } catch (e) {
@@ -1080,27 +1461,63 @@
             
             displayDiv.classList.remove('hidden');
             
-            let jsonStr = JSON.stringify(polygon, null, 2);
-            let html = '';
-            let coordIndex = 0;
-            const lines = jsonStr.split('\n');
-            
-            for (let line of lines) {
-                const coordMatch = line.match(/^(\s*)\[(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)\](.*)$/);
-                if (coordMatch) {
-                    const indent = coordMatch[1];
-                    const coord1 = coordMatch[2];
-                    const coord2 = coordMatch[3];
-                    const rest = coordMatch[4];
-                    
-                    html += `${indent}<span class="coord-highlight" data-coord-index="${coordIndex}" onmouseenter="highlightNode(${coordIndex})" onmouseleave="unhighlightNode()">[${coord1}, ${coord2}]</span>${rest}\n`;
-                    coordIndex++;
-                } else {
-                    html += line + '\n';
-                }
+            if (!originalPolygonCoords || originalPolygonCoords.length === 0) {
+                contentDiv.innerHTML = '<p>No polygon data available</p>';
+                return;
             }
             
-            contentDiv.innerHTML = '<pre style="margin: 0; font-family: inherit; white-space: pre-wrap; word-wrap: break-word;">' + html + '</pre>';
+            const coords = polygon.coordinates[0];
+            const actualNodeCount = coords.length - 1; // Exclude closing node
+            const duplicates = findDuplicateNodes(originalPolygonCoords);
+            
+            // Calculate bounding box
+            let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+            originalPolygonCoords.forEach(coord => {
+                const lon = coord[0];
+                const lat = coord[1];
+                minLon = Math.min(minLon, lon);
+                maxLon = Math.max(maxLon, lon);
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+            });
+            
+            const centerLon = (minLon + maxLon) / 2;
+            const centerLat = (minLat + maxLat) / 2;
+            
+            let html = `
+                <div style="font-family: -apple-system, sans-serif; line-height: 1.8;">
+                    <p style="margin: 8px 0;"><strong>Unique Nodes:</strong> ${actualNodeCount}</p>
+                    <p style="margin: 8px 0;"><strong>Total Coordinates:</strong> ${coords.length} (including closing node)</p>
+                    <p style="margin: 8px 0;"><strong>Duplicate Nodes:</strong> ${duplicates.length > 0 ? duplicates.length + ' found' : 'None'}</p>
+                    <p style="margin: 8px 0;"><strong>Center Point:</strong> [${centerLon.toFixed(6)}, ${centerLat.toFixed(6)}]</p>
+                    <p style="margin: 8px 0;"><strong>Bounding Box:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 4px;">
+                        <li style="margin: 4px 0;">Longitude: ${minLon.toFixed(6)} to ${maxLon.toFixed(6)}</li>
+                        <li style="margin: 4px 0;">Latitude: ${minLat.toFixed(6)} to ${maxLat.toFixed(6)}</li>
+                    </ul>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = html;
+        }
+
+        function clearSingle() {
+            document.getElementById('jsonInput').value = '';
+            document.getElementById('singleResults').innerHTML = '';
+            document.getElementById('jsonDisplay').classList.add('hidden');
+            
+            const canvas = document.getElementById('singleCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            originalPolygonCoords = null;
+            currentPolygonCoords = null;
+            hoveredNodeIndex = null;
+            lockedNodeIndex = null;
+            zoomLevel = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            hideCoordBubble();
         }
 
         function displaySingleResults(polygon, validation, nodeCount) {
@@ -1112,8 +1529,11 @@
             
             const handRuleBadge = validation.handRule ? `<span class="status-badge status-info">${validation.handRule}</span>` : '';
             
+            // Don't subtract for Point type, but subtract for Polygon type
+            const actualNodeCount = polygon.type === 'Point' ? nodeCount : (nodeCount > 0 ? nodeCount - 1 : nodeCount);
+            
             let html = '<table class="results-table"><thead><tr><th>Polygon Shape</th><th>States</th><th>Rules Type</th><th>Node Count</th></tr></thead><tbody>';
-            html += `<tr><td>${polygon.type || 'Polygon'}</td><td>${statesBadges}</td><td>${handRuleBadge}</td><td>${nodeCount}</td></tr>`;
+            html += `<tr><td>${polygon.type || 'Polygon'}</td><td>${statesBadges}</td><td>${handRuleBadge}</td><td>${actualNodeCount}</td></tr>`;
             html += '</tbody></table>';
             
             container.innerHTML = html;
@@ -1122,6 +1542,18 @@
         function validatePolygon(coords) {
             const states = [];
             let handRule = '';
+            
+            // Check if polygon is properly closed
+            const firstCoord = coords[0];
+            const lastCoord = coords[coords.length - 1];
+            if (firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1]) {
+                states.push({text: 'Not Closed (First ≠ Last)', type: 'error'});
+            }
+            
+            // Check minimum nodes
+            if (coords.length < 4) {
+                states.push({text: 'Insufficient Nodes (needs ≥4)', type: 'error'});
+            }
             
             const duplicates = findDuplicateNodes(coords);
             if (duplicates.length > 0) {
@@ -1133,8 +1565,7 @@
             }
             
             const isRightHand = checkRightHandRule(coords);
-            handRule = isRightHand ? 'Left Hand Rule' : 'Right Hand Rule';
-            // handRule = isRightHand ? 'Right Hand Rule' : 'Left Hand Rule';
+            handRule = isRightHand ? 'Right Hand Rule' : 'Left Hand Rule';
             
             if (states.length === 0) {
                 states.push({text: 'Valid', type: 'valid'});
@@ -1191,8 +1622,8 @@
                 area -= coords[j][0] * coords[i][1];
             }
             area = area / 2;
-            // Counter-clockwise (negative area) = Right Hand Rule
-            return area < 0;
+            // FLIPPED LOGIC: Positive area = Right Hand Rule, Negative = Left Hand Rule
+            return area > 0;
         }
 
         function drawPolygon(canvasId, coords) {
@@ -1219,12 +1650,19 @@
             });
             
             const padding = 60;
-            const scaleX = (canvas.width - padding * 2) / (maxX - minX || 1);
-            const scaleY = (canvas.height - padding * 2) / (maxY - minY || 1);
-            const scale = Math.min(scaleX, scaleY);
+            const baseScaleX = (canvas.width - padding * 2) / (maxX - minX || 1);
+            const baseScaleY = (canvas.height - padding * 2) / (maxY - minY || 1);
+            const baseScale = Math.min(baseScaleX, baseScaleY);
             
-            const offsetX = (canvas.width - (maxX - minX) * scale) / 2 - minX * scale;
-            const offsetY = (canvas.height - (maxY - minY) * scale) / 2 - minY * scale;
+            // No zoom for now, just use base scale
+            const scale = baseScale;
+            
+            // Apply pan offset
+            const baseOffsetX = (canvas.width - (maxX - minX) * baseScale) / 2 - minX * baseScale;
+            const baseOffsetY = (canvas.height - (maxY - minY) * baseScale) / 2 - minY * baseScale;
+            
+            const offsetX = baseOffsetX + panOffsetX;
+            const offsetY = baseOffsetY + panOffsetY;
             
             canvas.coordTransform = { scale, offsetX, offsetY, minX, minY, maxX, maxY };
             
@@ -1246,8 +1684,15 @@
             ctx.fill();
             ctx.stroke();
             
+            // Always show labels, adjust size for large polygons
+            const nodeSize = coords.length > 100 ? 4 : 6;
+            
             const duplicates = findDuplicateNodes(coords);
+            
+            // Draw all nodes except the first one
             coords.forEach((coord, i) => {
+                if (i === 0) return;
+                
                 const x = coord[0];
                 const y = coord[1];
                 const px = x * scale + offsetX;
@@ -1256,8 +1701,6 @@
                 let fillColor;
                 if (hoveredNodeIndex === i) {
                     fillColor = '#16a34a';
-                } else if (i === 0) {
-                    fillColor = '#f59e0b';
                 } else if (duplicates.includes(i)) {
                     fillColor = '#ef4444';
                 } else {
@@ -1265,7 +1708,7 @@
                 }
                 
                 ctx.beginPath();
-                ctx.arc(px, py, 6, 0, Math.PI * 2);
+                ctx.arc(px, py, nodeSize, 0, Math.PI * 2);
                 ctx.fillStyle = fillColor;
                 ctx.fill();
                 ctx.strokeStyle = 'white';
@@ -1289,6 +1732,38 @@
                 ctx.fillStyle = '#1e293b';
                 ctx.fillText((i + 1).toString(), numX, numY);
             });
+            
+            // Draw the first node last so it's on top (orange)
+            const firstCoord = coords[0];
+            const x0 = firstCoord[0];
+            const y0 = firstCoord[1];
+            const px0 = x0 * scale + offsetX;
+            const py0 = canvas.height - (y0 * scale + offsetY);
+            
+            ctx.beginPath();
+            ctx.arc(px0, py0, nodeSize, 0, Math.PI * 2);
+            ctx.fillStyle = hoveredNodeIndex === 0 ? '#16a34a' : '#f59e0b';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const numOffset0 = 15;
+            let numX0 = px0;
+            let numY0 = py0 - numOffset0;
+            
+            if (py0 < 30) numY0 = py0 + numOffset0;
+            
+            ctx.fillStyle = 'white';
+            ctx.fillRect(numX0 - 10, numY0 - 8, 20, 16);
+            
+            ctx.fillStyle = '#1e293b';
+            ctx.fillText('1', numX0, numY0);
         }
 
         function visualizePolygon(index) {
@@ -1297,6 +1772,8 @@
             
             const coords = item.polygon.coordinates[0];
             
+            // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
+            // Orbit mode: input is [Long, Lat], use as-is
             originalPolygonCoords = coords.map(coord => {
                 return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
             });
@@ -1304,7 +1781,8 @@
             currentPolygonCoords = coords;
             
             document.getElementById('modalTitle').textContent = `Polygon: ${item.id}`;
-            document.getElementById('nodeCount').textContent = coords.length;
+            const actualNodeCount = coords.length - 1; // Exclude closing node
+            document.getElementById('nodeCount').textContent = actualNodeCount;
             
             setTimeout(() => {
                 drawPolygon('modalCanvas', originalPolygonCoords);
@@ -1423,9 +1901,121 @@
             if (foundNode !== hoveredNodeIndex) {
                 if (foundNode >= 0) {
                     highlightNode(foundNode);
+                    // Show bubble for single canvas only
+                    if (canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
+                        showCoordBubble(foundNode, e.clientX, e.clientY);
+                    }
                 } else {
                     unhighlightNode();
+                    if (canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
+                        hideCoordBubble();
+                    }
                 }
+            } else if (foundNode >= 0 && canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
+                // Update bubble position if still hovering same node
+                updateBubblePosition(e.clientX, e.clientY);
+            }
+        }
+
+        function showCoordBubble(nodeIndex, mouseX, mouseY) {
+            if (!currentPolygonCoords) return;
+            
+            const bubble = document.getElementById('coordBubble');
+            const coord = currentPolygonCoords[nodeIndex];
+            
+            // Format based on current mode
+            const display1 = coord[0];
+            const display2 = coord[1];
+            const label = isOrbitMode ? 'Long, Lat' : 'Lat, Long';
+            
+            bubble.textContent = `Node ${nodeIndex + 1}: [${display1}, ${display2}] (${label})`;
+            bubble.classList.add('active');
+            
+            updateBubblePosition(mouseX, mouseY);
+        }
+
+        function updateBubblePosition(mouseX, mouseY) {
+            const bubble = document.getElementById('coordBubble');
+            const container = document.getElementById('mapContainer');
+            const rect = container.getBoundingClientRect();
+            
+            let bubbleX = mouseX - rect.left + bubbleOffsetX;
+            let bubbleY = mouseY - rect.top - 40 + bubbleOffsetY;
+            
+            bubble.style.left = bubbleX + 'px';
+            bubble.style.top = bubbleY + 'px';
+            bubble.style.transform = 'translateX(-50%)';
+        }
+
+        function hideCoordBubble() {
+            const bubble = document.getElementById('coordBubble');
+            bubble.classList.remove('active');
+            bubbleOffsetX = 0;
+            bubbleOffsetY = 0;
+        }
+
+        function lockCoordBubble(nodeIndex) {
+            const bubble = document.getElementById('coordBubble');
+            lockedNodeIndex = nodeIndex;
+            bubble.classList.add('locked');
+        }
+
+        function unlockCoordBubble() {
+            const bubble = document.getElementById('coordBubble');
+            lockedNodeIndex = null;
+            bubble.classList.remove('locked');
+            hideCoordBubble();
+        }
+
+        function autoClosePolygon() {
+            const jsonInput = document.getElementById('jsonInput');
+            const jsonValue = jsonInput.value.trim();
+            
+            if (!jsonValue) {
+                alert('Please paste a polygon first');
+                return;
+            }
+            
+            try {
+                const polygon = JSON.parse(jsonValue);
+                
+                if (polygon.type === 'Point') {
+                    alert('Cannot auto-close a Point geometry');
+                    return;
+                }
+                
+                if (!polygon.coordinates || !polygon.coordinates[0]) {
+                    alert('Invalid polygon format');
+                    return;
+                }
+                
+                const coords = polygon.coordinates[0];
+                
+                if (coords.length < 2) {
+                    alert('Need at least 2 coordinates to close a polygon');
+                    return;
+                }
+                
+                const firstCoord = coords[0];
+                const lastCoord = coords[coords.length - 1];
+                
+                // Check if already closed
+                if (firstCoord[0] === lastCoord[0] && firstCoord[1] === lastCoord[1]) {
+                    alert('Polygon is already closed!');
+                    return;
+                }
+                
+                // Add first coordinate to the end
+                polygon.coordinates[0].push([firstCoord[0], firstCoord[1]]);
+                
+                // Update input
+                jsonInput.value = JSON.stringify(polygon);
+                
+                // Auto-validate
+                validateSingle();
+                
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
             }
         }
 
@@ -1458,16 +2048,153 @@
             }
         });
 
+        // Wait for DOM to be ready before adding bubble drag listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const coordBubble = document.getElementById('coordBubble');
+            
+            if (coordBubble) {
+                coordBubble.addEventListener('mousedown', function(e) {
+                    if (!this.classList.contains('locked')) return;
+                    
+                    isDraggingBubble = true;
+                    bubbleDragStartX = e.clientX;
+                    bubbleDragStartY = e.clientY;
+                    this.classList.add('dragging');
+                    e.stopPropagation();
+                });
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isDraggingBubble) return;
+            
+            const deltaX = e.clientX - bubbleDragStartX;
+            const deltaY = e.clientY - bubbleDragStartY;
+            
+            bubbleOffsetX += deltaX;
+            bubbleOffsetY += deltaY;
+            
+            bubbleDragStartX = e.clientX;
+            bubbleDragStartY = e.clientY;
+            
+            // Update bubble position
+            const bubble = document.getElementById('coordBubble');
+            if (!bubble) return;
+            
+            const currentLeft = parseFloat(bubble.style.left) || 0;
+            const currentTop = parseFloat(bubble.style.top) || 0;
+            
+            bubble.style.left = (currentLeft + deltaX) + 'px';
+            bubble.style.top = (currentTop + deltaY) + 'px';
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isDraggingBubble) {
+                isDraggingBubble = false;
+                const bubble = document.getElementById('coordBubble');
+                if (bubble) bubble.classList.remove('dragging');
+            }
+        });
+
         const singleCanvas = document.getElementById('singleCanvas');
+        
+        // Smooth zoom with mouse wheel
+        singleCanvas.addEventListener('wheel', function(e) {
+            if (!originalPolygonCoords || currentMode !== 'single') return;
+            e.preventDefault();
+            
+            const delta = e.deltaY > 0 ? 0.95 : 1.05; // Smooth increments
+            const newZoom = zoomLevel * delta;
+            
+            if (newZoom >= 0.3 && newZoom <= 5) {
+                zoomLevel = newZoom;
+                drawPolygon('singleCanvas', originalPolygonCoords);
+            }
+        });
+        
+        // Pan with click and drag
+        singleCanvas.addEventListener('mousedown', function(e) {
+            if (!originalPolygonCoords || currentMode !== 'single') return;
+            isDraggingMap = true;
+            mapDragStartX = e.clientX;
+            mapDragStartY = e.clientY;
+            singleCanvas.style.cursor = 'grabbing';
+        });
         
         singleCanvas.addEventListener('mousemove', function(e) {
             if (!originalPolygonCoords || currentMode !== 'single') return;
-            handleCanvasHover(e, this, originalPolygonCoords);
+            
+            if (isDraggingMap) {
+                const deltaX = e.clientX - mapDragStartX;
+                const deltaY = e.clientY - mapDragStartY;
+                
+                panOffsetX += deltaX;
+                panOffsetY += deltaY;
+                
+                mapDragStartX = e.clientX;
+                mapDragStartY = e.clientY;
+                
+                drawPolygon('singleCanvas', originalPolygonCoords);
+            } else {
+                handleCanvasHover(e, this, originalPolygonCoords);
+            }
+        });
+        
+        singleCanvas.addEventListener('mouseup', function() {
+            if (currentMode !== 'single') return;
+            isDraggingMap = false;
+            singleCanvas.style.cursor = 'crosshair';
         });
         
         singleCanvas.addEventListener('mouseleave', function() {
             if (currentMode !== 'single') return;
-            unhighlightNode();
+            isDraggingMap = false;
+            singleCanvas.style.cursor = 'crosshair';
+            if (lockedNodeIndex === null) {
+                unhighlightNode();
+                hideCoordBubble();
+            }
+        });
+
+        singleCanvas.addEventListener('click', function(e) {
+            if (!originalPolygonCoords || currentMode !== 'single') return;
+            if (isDraggingMap) return; // Don't lock if we were dragging
+            
+            const rect = this.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const transform = this.coordTransform;
+            if (!transform) return;
+            
+            const { scale, offsetX, offsetY } = transform;
+            
+            let foundNode = -1;
+            const threshold = 12;
+            
+            for (let i = 0; i < originalPolygonCoords.length; i++) {
+                const x = originalPolygonCoords[i][0];
+                const y = originalPolygonCoords[i][1];
+                const px = x * scale + offsetX;
+                const py = this.height - (y * scale + offsetY);
+                
+                const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
+                if (dist < threshold) {
+                    foundNode = i;
+                    break;
+                }
+            }
+            
+            if (foundNode >= 0) {
+                if (lockedNodeIndex === foundNode) {
+                    unlockCoordBubble();
+                } else {
+                    lockCoordBubble(foundNode);
+                    showCoordBubble(foundNode, e.clientX, e.clientY);
+                }
+            } else {
+                unlockCoordBubble();
+            }
         });
 
         const modalCanvas = document.getElementById('modalCanvas');
@@ -1482,5 +2209,4 @@
         });
     </script>
 </body>
-<!-- Hello -->
-</html> 
+</html>
