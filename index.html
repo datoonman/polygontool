@@ -2129,7 +2129,7 @@
                 const deltaY = e.clientY - mapDragStartY;
                 
                 panOffsetX += deltaX;
-                panOffsetY += deltaY;
+                panOffsetY -= deltaY;  // Inverted Y-axis for natural panning
                 
                 mapDragStartX = e.clientX;
                 mapDragStartY = e.clientY;
