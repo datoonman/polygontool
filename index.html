@@ -383,24 +383,6 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        .coord-highlight {
-            cursor: pointer;
-            transition: all 0.2s;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-
-        .coord-highlight:hover {
-            background: #dcfce7;
-            color: #16a34a;
-        }
-
-        .coord-highlight.active {
-            background: #dcfce7;
-            color: #16a34a;
-            font-weight: bold;
-        }
-
         .btn-primary {
             background: #2563eb;
             color: white;
@@ -413,10 +395,16 @@
             transition: all 0.3s;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: #1e40af;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-secondary {
@@ -439,11 +427,59 @@
             display: flex;
             gap: 10px;
             margin-top: 15px;
+            position: relative;
         }
 
         .button-group button {
             flex: 1;
             margin: 0;
+        }
+
+        .tools-container {
+            position: relative;
+            flex: 1;
+        }
+
+        .tools-dropdown {
+            position: absolute;
+            top: calc(100% + 5px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .tools-dropdown.active {
+            display: block;
+        }
+
+        .tool-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95em;
+            color: #1e293b;
+        }
+
+        .tool-item:last-child {
+            border-bottom: none;
+        }
+
+        .tool-item:hover:not(.disabled) {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .tool-item.disabled {
+            color: #cbd5e1;
+            cursor: not-allowed;
+            background: #f8fafc;
         }
 
         .format-hint {
@@ -919,9 +955,25 @@
                         <div class="format-hint" id="formatHint">
                             <strong>Expected format:</strong> <span id="formatHintText">[Latitude, Longitude]</span>
                         </div>
+                        
                         <div class="button-group">
                             <button class="btn-primary" onclick="validateSingle()">Validate Polygon</button>
-                            <button class="btn-secondary" onclick="autoClosePolygon()">Auto-Close</button>
+                            
+                            <div class="tools-container">
+                                <button class="btn-secondary" onclick="toggleToolsDropdown()">Tools ▼</button>
+                                <div class="tools-dropdown" id="toolsDropdown">
+                                    <div class="tool-item" onclick="autoClosePolygon()">
+                                        Auto-Close Polygon
+                                    </div>
+                                    <div class="tool-item" id="convertToolItem" onclick="convertToRightHandRule()">
+                                        Convert to Right Hand Rule
+                                    </div>
+                                    <div class="tool-item" id="removeDuplicatesToolItem" onclick="removeDuplicateNodes()">
+                                        Remove Duplicate Nodes
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <button class="btn-secondary" onclick="clearSingle()">Clear</button>
                         </div>
                         
@@ -990,18 +1042,12 @@
                     Example: <code>[6.233, 0.700]</code> means the FIRST number is Longitude, SECOND is Latitude
                 </div>
 
-                <p><strong>How to know which mode to use?</strong></p>
+                <h3>🛠️ Tools Menu</h3>
+                <p>The Tools button provides access to polygon manipulation features:</p>
                 <ul>
-                    <li>If your data comes from an ORIGIN app that stores [Lat, Long], select <strong>Origin mode</strong></li>
-                    <li>If your data uses standard GeoJSON [Long, Lat] format, select <strong>Orbit mode</strong></li>
-                    <li>The visualization stays accurate regardless of mode by interpreting the order correctly</li>
-                </ul>
-
-                <p><strong>What happens when you toggle?</strong></p>
-                <ul>
-                    <li>The coordinate numbers in your JSON will <strong>swap positions</strong></li>
-                    <li>The polygon visualization will remain <strong>identical</strong></li>
-                    <li>The hand rule calculation is based on the correctly interpreted geographic coordinates</li>
+                    <li><strong>Auto-Close Polygon:</strong> Automatically adds the first coordinate to the end if polygon isn't closed</li>
+                    <li><strong>Convert to Right Hand Rule:</strong> Reverses vertex order to follow Right Hand Rule (disabled if already RHR)</li>
+                    <li><strong>Remove Duplicate Nodes:</strong> Removes all duplicate coordinates except the closing pair (disabled if none found)</li>
                 </ul>
 
                 <h3>📐 Polygon Format</h3>
@@ -1009,7 +1055,7 @@
                 <div class="example">
                     <code>{"type":"Polygon","coordinates":[[[lon1,lat1],[lon2,lat2],...,[lon1,lat1]]]}</code>
                 </div>
-                <p><strong>Critical:</strong> The first and last coordinates must be identical to close the polygon. This is the expected closing node and won't be flagged as a duplicate.</p>
+                <p><strong>Critical:</strong> The first and last coordinates must be identical to close the polygon.</p>
 
                 <h3>✅ Validation States</h3>
                 <ul>
@@ -1022,152 +1068,54 @@
                 </ul>
 
                 <h3>🧭 Hand Rules (Rules Type)</h3>
-                <p><strong>Right Hand Rule:</strong> Vertices are ordered counter-clockwise when viewed from above. Imagine walking along the edges - your right hand points outward from the polygon.</p>
+                <p><strong>Right Hand Rule:</strong> Vertices are ordered counter-clockwise when viewed from above.</p>
                 <p><strong>Left Hand Rule:</strong> Vertices are ordered clockwise when viewed from above.</p>
                 <p>The tool identifies which rule your polygon follows - there's no "pass/fail", just identification.</p>
-
-                <h3>📄 Single Polygon Mode</h3>
-                <ul>
-                    <li>Paste your GeoJSON polygon into the text area</li>
-                    <li>Click "Validate Polygon" to see results</li>
-                    <li>The map shows real-time visualization with numbered nodes</li>
-                    <li>Hover over nodes on the canvas to see coordinates highlighted in the JSON display below</li>
-                    <li>Toggle between Origin/Orbit mode to see coordinates swap in the JSON</li>
-                    <li>Use mouse wheel to zoom in/out</li>
-                    <li>Click and drag to pan around the polygon</li>
-                </ul>
-
-                <h3>📊 Bulk Upload Mode</h3>
-                <ul>
-                    <li>Upload CSV, XLSX, or XLS files</li>
-                    <li>Required columns: <code>ID</code> (identifier) and <code>Polygon</code> (GeoJSON string)</li>
-                    <li>All polygons are validated automatically</li>
-                    <li>Click "MAP" button to visualize any polygon in detail</li>
-                    <li>In the visualization modal, hover over nodes to highlight them on both map and list</li>
-                    <li>Use mouse wheel to zoom in/out in the modal</li>
-                    <li>Click and drag to pan in the modal</li>
-                </ul>
-
-                <h3>🎨 Node Colors on Map</h3>
-                <ul>
-                    <li><strong>🟠 Orange/Yellow:</strong> Starting node (first vertex)</li>
-                    <li><strong>🔴 Red:</strong> Duplicate nodes</li>
-                    <li><strong>🟢 Green (hover):</strong> Currently highlighted node</li>
-                    <li><strong>🔵 Blue:</strong> Regular nodes</li>
-                </ul>
-
-                <h3>📝 Node List Indicators</h3>
-                <ul>
-                    <li><strong>🟠 Start:</strong> First node of the polygon</li>
-                    <li><strong>⚪ End (grayed out):</strong> Last node (identical to first, closing the polygon - cannot be interacted with)</li>
-                    <li><strong>🔴 Duplicate:</strong> Nodes with coordinates matching other nodes</li>
-                </ul>
-
-                <h3>💡 Tips</h3>
-                <ul>
-                    <li>Always ensure your first and last coordinates are identical to properly close the polygon</li>
-                    <li>Use <strong>Origin mode</strong> if your data source stores coordinates as [Latitude, Longitude]</li>
-                    <li>Use <strong>Orbit mode</strong> if your data source stores coordinates as [Longitude, Latitude] (standard GeoJSON)</li>
-                    <li>The visualization and hand rule calculation are based on correctly interpreted geographic positions</li>
-                    <li>Node numbers on the map help identify vertices in order</li>
-                    <li>Bulk upload is not available on mobile devices for optimal experience</li>
-                </ul>
-
-                <h3>📏 Polygon Shape Column</h3>
-                <p>This column displays the geometry type from your GeoJSON (typically "Polygon"). If the data contains a Point instead of a Polygon, it will show "Point".</p>
 
                 <h3>🔧 Version History & Patch Notes</h3>
                 
                 <div class="version-section">
+                    <div class="version-header" onclick="toggleVersion('v30')">
+                        <span class="version-badge">v30</span>
+                        <span>Latest - Tools Menu & Polygon Manipulation</span>
+                        <span id="v30-arrow">▼</span>
+                    </div>
+                    <div class="version-content" id="v30-content">
+                        <div class="version-item">• Added Tools dropdown menu with polygon manipulation features</div>
+                        <div class="version-item">• New: Convert to Right Hand Rule (reverses vertex order)</div>
+                        <div class="version-item">• New: Remove Duplicate Nodes (keeps first occurrence)</div>
+                        <div class="version-item">• Tool items are greyed out when not applicable</div>
+                        <div class="version-item">• Auto-Close moved to Tools menu</div>
+                        <div class="version-item">• All tools auto-validate after execution</div>
+                    </div>
+                </div>
+
+                <div class="version-section">
                     <div class="version-header" onclick="toggleVersion('v29')">
                         <span class="version-badge">v29</span>
-                        <span>Latest - Map Pan & Smooth Zoom</span>
+                        <span>Map Pan & Smooth Zoom</span>
                         <span id="v29-arrow">▼</span>
                     </div>
-                    <div class="version-content" id="v29-content">
-                        <div class="version-item">• Added smooth zoom functionality (mouse wheel) with gentle increments</div>
-                        <div class="version-item">• Added map panning - drag anywhere on canvas to reposition view</div>
-                        <div class="version-item">• Locked coordinate bubbles stay in place while panning</div>
-                        <div class="version-item">• Auto-hide node labels for large polygons (100+ nodes) when zoomed out</div>
-                        <div class="version-item">• Smaller node size for dense polygons (100+)</div>
-                        <div class="version-item">• Warning message for large polygons</div>
-                        <div class="version-item">• Improved Polygon Summary spacing</div>
+                    <div class="version-content collapsed" id="v29-content">
+                        <div class="version-item">• Added smooth zoom functionality (mouse wheel)</div>
+                        <div class="version-item">• Added map panning - drag to reposition view</div>
+                        <div class="version-item">• Auto-hide node labels for large polygons (100+ nodes)</div>
+                        <div class="version-item">• Improved polygon summary spacing</div>
                     </div>
                 </div>
 
-                <div class="version-section">
-                    <div class="version-header" onclick="toggleVersion('v28')">
-                        <span class="version-badge">v28</span>
-                        <span>Draggable Bubbles & Auto-Close</span>
-                        <span id="v28-arrow">▼</span>
-                    </div>
-                    <div class="version-content collapsed" id="v28-content">
-                        <div class="version-item">• Added draggable coordinate bubbles when locked</div>
-                        <div class="version-item">• Added "Auto-Close" button to complete unclosed polygons</div>
-                        <div class="version-item">• Improved button sizing consistency</div>
-                    </div>
-                </div>
-
-                <div class="version-section">
-                    <div class="version-header" onclick="toggleVersion('v27')">
-                        <span class="version-badge">v27</span>
-                        <span>Coordinate Bubbles & Polygon Summary</span>
-                        <span id="v27-arrow">▼</span>
-                    </div>
-                    <div class="version-content collapsed" id="v27-content">
-                        <div class="version-item">• Added hover bubble showing coordinate details on nodes</div>
-                        <div class="version-item">• Click to lock/unlock coordinate bubble</div>
-                        <div class="version-item">• Replaced JSON display with useful Polygon Summary</div>
-                        <div class="version-item">• Added center point and bounding box calculations</div>
-                        <div class="version-item">• Added "Clear" button</div>
-                    </div>
-                </div>
-
-                <button class="show-more-btn" id="showMoreBtn" onclick="toggleOlderVersions()">Show 3 Earlier Versions</button>
+                <button class="show-more-btn" id="showMoreBtn" onclick="toggleOlderVersions()">Show Earlier Versions</button>
 
                 <div id="olderVersions" style="display: none;">
                     <div class="version-section">
-                        <div class="version-header" onclick="toggleVersion('v26')">
-                            <span class="version-badge">v26</span>
-                            <span>UI Improvements & Tooltips</span>
-                            <span id="v26-arrow">▼</span>
+                        <div class="version-header" onclick="toggleVersion('v28')">
+                            <span class="version-badge">v28</span>
+                            <span>Draggable Bubbles & Auto-Close</span>
+                            <span id="v28-arrow">▼</span>
                         </div>
-                        <div class="version-content collapsed" id="v26-content">
-                            <div class="version-item">• Added mode indicator badge</div>
-                            <div class="version-item">• Added tooltips for Origin/Orbit modes</div>
-                            <div class="version-item">• Added format hints for expected coordinate order</div>
-                            <div class="version-item">• Improved validation with polygon closure check</div>
-                            <div class="version-item">• Added minimum node count validation</div>
-                        </div>
-                    </div>
-
-                    <div class="version-section">
-                        <div class="version-header" onclick="toggleVersion('v25')">
-                            <span class="version-badge">v25</span>
-                            <span>Hand Rule & Point Detection Fixes</span>
-                            <span id="v25-arrow">▼</span>
-                        </div>
-                        <div class="version-content collapsed" id="v25-content">
-                            <div class="version-item">• Fixed Right Hand Rule calculation using Shoelace formula</div>
-                            <div class="version-item">• Corrected Point geometry detection</div>
-                            <div class="version-item">• Fixed node count to exclude closing duplicate</div>
-                            <div class="version-item">• Fixed first node rendering (now draws on top in orange)</div>
-                        </div>
-                    </div>
-
-                    <div class="version-section">
-                        <div class="version-header" onclick="toggleVersion('v24')">
-                            <span class="version-badge">v24</span>
-                            <span>Initial Release</span>
-                            <span id="v24-arrow">▼</span>
-                        </div>
-                        <div class="version-content collapsed" id="v24-content">
-                            <div class="version-item">• Single polygon validation</div>
-                            <div class="version-item">• Bulk upload (CSV, Excel)</div>
-                            <div class="version-item">• Origin/Orbit coordinate mode switching</div>
-                            <div class="version-item">• Visual polygon rendering with numbered nodes</div>
-                            <div class="version-item">• Validation: self-intersection, duplicates, hand rule</div>
-                            <div class="version-item">• Mobile-responsive design</div>
+                        <div class="version-content collapsed" id="v28-content">
+                            <div class="version-item">• Added draggable coordinate bubbles when locked</div>
+                            <div class="version-item">• Added "Auto-Close" button</div>
                         </div>
                     </div>
                 </div>
@@ -1188,7 +1136,7 @@
                             btn.textContent = 'Hide Earlier Versions';
                         } else {
                             olderVersions.style.display = 'none';
-                            btn.textContent = 'Show 3 Earlier Versions';
+                            btn.textContent = 'Show Earlier Versions';
                         }
                     }
                 </script>
@@ -1211,7 +1159,6 @@
         let bubbleOffsetX = 0;
         let bubbleOffsetY = 0;
         
-        // Map panning and zooming YE
         let zoomLevel = 1;
         let panOffsetX = 0;
         let panOffsetY = 0;
@@ -1219,12 +1166,165 @@
         let mapDragStartX = 0;
         let mapDragStartY = 0;
 
+        function toggleToolsDropdown() {
+            const dropdown = document.getElementById('toolsDropdown');
+            dropdown.classList.toggle('active');
+            updateToolsState();
+        }
+
+        function updateToolsState() {
+            if (!originalPolygonCoords) return;
+            
+            const validation = validatePolygon(originalPolygonCoords);
+            const duplicates = findDuplicateNodes(originalPolygonCoords);
+            const isRightHand = validation.handRule === 'Right Hand Rule';
+            
+            const convertItem = document.getElementById('convertToolItem');
+            const removeDuplicatesItem = document.getElementById('removeDuplicatesToolItem');
+            
+            if (isRightHand) {
+                convertItem.classList.add('disabled');
+            } else {
+                convertItem.classList.remove('disabled');
+            }
+            
+            if (duplicates.length === 0) {
+                removeDuplicatesItem.classList.add('disabled');
+            } else {
+                removeDuplicatesItem.classList.remove('disabled');
+            }
+        }
+
+        function convertToRightHandRule() {
+            const convertItem = document.getElementById('convertToolItem');
+            if (convertItem.classList.contains('disabled')) return;
+            
+            const jsonInput = document.getElementById('jsonInput');
+            const jsonValue = jsonInput.value.trim();
+            
+            if (!jsonValue) {
+                alert('Please paste a polygon first');
+                return;
+            }
+            
+            try {
+                const polygon = JSON.parse(jsonValue);
+                
+                if (polygon.type === 'Point') {
+                    alert('Cannot convert a Point geometry');
+                    return;
+                }
+                
+                if (!polygon.coordinates || !polygon.coordinates[0]) {
+                    alert('Invalid polygon format');
+                    return;
+                }
+                
+                const coords = polygon.coordinates[0];
+                
+                if (coords.length < 2) {
+                    alert('Need at least 2 coordinates');
+                    return;
+                }
+                
+                const firstCoord = coords[0];
+                const middleCoords = coords.slice(1, -1);
+                const reversedMiddle = middleCoords.reverse();
+                
+                polygon.coordinates[0] = [firstCoord, ...reversedMiddle, [firstCoord[0], firstCoord[1]]];
+                
+                jsonInput.value = JSON.stringify(polygon);
+                
+                document.getElementById('toolsDropdown').classList.remove('active');
+                validateSingle();
+                
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+            }
+        }
+
+        function removeDuplicateNodes() {
+            const removeDuplicatesItem = document.getElementById('removeDuplicatesToolItem');
+            if (removeDuplicatesItem.classList.contains('disabled')) return;
+            
+            const jsonInput = document.getElementById('jsonInput');
+            const jsonValue = jsonInput.value.trim();
+            
+            if (!jsonValue) {
+                alert('Please paste a polygon first');
+                return;
+            }
+            
+            try {
+                const polygon = JSON.parse(jsonValue);
+                
+                if (polygon.type === 'Point') {
+                    alert('Cannot remove duplicates from a Point geometry');
+                    return;
+                }
+                
+                if (!polygon.coordinates || !polygon.coordinates[0]) {
+                    alert('Invalid polygon format');
+                    return;
+                }
+                
+                const coords = polygon.coordinates[0];
+                const lastIndex = coords.length - 1;
+                
+                const seen = new Map();
+                const cleaned = [];
+                
+                coords.forEach((coord, i) => {
+                    const key = `${coord[0]},${coord[1]}`;
+                    
+                    if ((i === 0 || i === lastIndex) && i === lastIndex) {
+                        cleaned.push(coord);
+                    } else if (!seen.has(key)) {
+                        seen.set(key, true);
+                        cleaned.push(coord);
+                    }
+                });
+                
+                if (cleaned.length > 0) {
+                    const first = cleaned[0];
+                    const last = cleaned[cleaned.length - 1];
+                    
+                    if (first[0] !== last[0] || first[1] !== last[1]) {
+                        cleaned.push([first[0], first[1]]);
+                    }
+                }
+                
+                polygon.coordinates[0] = cleaned;
+                
+                jsonInput.value = JSON.stringify(polygon);
+                
+                document.getElementById('toolsDropdown').classList.remove('active');
+                validateSingle();
+                
+                const duplicatesRemoved = coords.length - cleaned.length;
+                if (duplicatesRemoved > 0) {
+                    alert(`Removed ${duplicatesRemoved} duplicate node(s)`);
+                }
+                
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const toolsContainer = document.querySelector('.tools-container');
+            const dropdown = document.getElementById('toolsDropdown');
+            
+            if (dropdown && !toolsContainer.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
         document.getElementById('coordToggle').addEventListener('click', function() {
             this.classList.toggle('active');
             const wasOrbitMode = isOrbitMode;
             isOrbitMode = this.classList.contains('active');
             
-            // Update mode indicator
             document.getElementById('modeIndicator').textContent = isOrbitMode ? 'Orbit Mode' : 'Origin Mode';
             document.getElementById('formatHintText').textContent = isOrbitMode ? '[Longitude, Latitude]' : '[Latitude, Longitude]';
             
@@ -1235,7 +1335,6 @@
                 if (jsonValue) {
                     try {
                         const polygon = JSON.parse(jsonValue);
-                        // Don't swap if it's a Point
                         if (polygon.type === 'Point') {
                             return;
                         }
@@ -1245,7 +1344,6 @@
                             validateSingle();
                         }
                     } catch (e) {
-                        // Invalid JSON, ignore
                     }
                 }
             }
@@ -1341,7 +1439,6 @@
                     const polygon = JSON.parse(polygonStr);
                     result.polygon = polygon;
                     
-                    // Check if it's a Point type
                     if (polygon.type === 'Point') {
                         result.states.push({text: 'Point', type: 'warning'});
                         return result;
@@ -1359,8 +1456,6 @@
                         return result;
                     }
 
-                    // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
-                    // Orbit mode: input is [Long, Lat], use as-is
                     const convertedCoords = coords.map(coord => {
                         return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
                     });
@@ -1412,7 +1507,6 @@
             try {
                 const polygon = JSON.parse(jsonInput);
                 
-                // Check if it's a Point type FIRST before accessing coordinates[0]
                 if (polygon.type === 'Point') {
                     displaySingleResults(polygon, {states: [{text: 'Point', type: 'warning'}], handRule: ''}, 1);
                     
@@ -1432,8 +1526,6 @@
 
                 const coords = polygon.coordinates[0];
                 
-                // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
-                // Orbit mode: input is [Long, Lat], use as-is
                 originalPolygonCoords = coords.map(coord => {
                     return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
                 });
@@ -1443,13 +1535,14 @@
                 
                 displaySingleResults(polygon, validation, coords.length);
                 
-                // Reset zoom and pan
                 zoomLevel = 1;
                 panOffsetX = 0;
                 panOffsetY = 0;
                 
                 drawPolygon('singleCanvas', originalPolygonCoords);
                 displayJsonWithHighlight(polygon);
+                
+                updateToolsState();
             } catch (e) {
                 alert('Invalid JSON: ' + e.message);
             }
@@ -1467,10 +1560,9 @@
             }
             
             const coords = polygon.coordinates[0];
-            const actualNodeCount = coords.length - 1; // Exclude closing node
+            const actualNodeCount = coords.length - 1;
             const duplicates = findDuplicateNodes(originalPolygonCoords);
             
-            // Calculate bounding box
             let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
             originalPolygonCoords.forEach(coord => {
                 const lon = coord[0];
@@ -1529,7 +1621,6 @@
             
             const handRuleBadge = validation.handRule ? `<span class="status-badge status-info">${validation.handRule}</span>` : '';
             
-            // Don't subtract for Point type, but subtract for Polygon type
             const actualNodeCount = polygon.type === 'Point' ? nodeCount : (nodeCount > 0 ? nodeCount - 1 : nodeCount);
             
             let html = '<table class="results-table"><thead><tr><th>Polygon Shape</th><th>States</th><th>Rules Type</th><th>Node Count</th></tr></thead><tbody>';
@@ -1543,14 +1634,12 @@
             const states = [];
             let handRule = '';
             
-            // Check if polygon is properly closed
             const firstCoord = coords[0];
             const lastCoord = coords[coords.length - 1];
             if (firstCoord[0] !== lastCoord[0] || firstCoord[1] !== lastCoord[1]) {
                 states.push({text: 'Not Closed (First ≠ Last)', type: 'error'});
             }
             
-            // Check minimum nodes
             if (coords.length < 4) {
                 states.push({text: 'Insufficient Nodes (needs ≥4)', type: 'error'});
             }
@@ -1614,7 +1703,6 @@
         }
 
         function checkRightHandRule(coords) {
-            // Use Shoelace formula for accurate signed area calculation
             let area = 0;
             for (let i = 0; i < coords.length; i++) {
                 const j = (i + 1) % coords.length;
@@ -1622,7 +1710,6 @@
                 area -= coords[j][0] * coords[i][1];
             }
             area = area / 2;
-            // FLIPPED LOGIC: Positive area = Right Hand Rule, Negative = Left Hand Rule
             return area > 0;
         }
 
@@ -1654,10 +1741,8 @@
             const baseScaleY = (canvas.height - padding * 2) / (maxY - minY || 1);
             const baseScale = Math.min(baseScaleX, baseScaleY);
             
-            // No zoom for now, just use base scale
-            const scale = baseScale;
+            const scale = baseScale * zoomLevel;
             
-            // Apply pan offset
             const baseOffsetX = (canvas.width - (maxX - minX) * baseScale) / 2 - minX * baseScale;
             const baseOffsetY = (canvas.height - (maxY - minY) * baseScale) / 2 - minY * baseScale;
             
@@ -1684,12 +1769,9 @@
             ctx.fill();
             ctx.stroke();
             
-            // Always show labels, adjust size for large polygons
             const nodeSize = coords.length > 100 ? 4 : 6;
-            
             const duplicates = findDuplicateNodes(coords);
             
-            // Draw all nodes except the first one
             coords.forEach((coord, i) => {
                 if (i === 0) return;
                 
@@ -1733,7 +1815,6 @@
                 ctx.fillText((i + 1).toString(), numX, numY);
             });
             
-            // Draw the first node last so it's on top (orange)
             const firstCoord = coords[0];
             const x0 = firstCoord[0];
             const y0 = firstCoord[1];
@@ -1772,8 +1853,6 @@
             
             const coords = item.polygon.coordinates[0];
             
-            // Origin mode: input is [Lat, Long], swap to [Long, Lat] for calculation
-            // Orbit mode: input is [Long, Lat], use as-is
             originalPolygonCoords = coords.map(coord => {
                 return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
             });
@@ -1781,7 +1860,7 @@
             currentPolygonCoords = coords;
             
             document.getElementById('modalTitle').textContent = `Polygon: ${item.id}`;
-            const actualNodeCount = coords.length - 1; // Exclude closing node
+            const actualNodeCount = coords.length - 1;
             document.getElementById('nodeCount').textContent = actualNodeCount;
             
             setTimeout(() => {
@@ -1841,16 +1920,6 @@
                 }
             });
             
-            if (currentMode === 'single') {
-                document.querySelectorAll('.coord-highlight').forEach((span, i) => {
-                    if (i === index) {
-                        span.classList.add('active');
-                    } else {
-                        span.classList.remove('active');
-                    }
-                });
-            }
-            
             if (currentCanvasId && originalPolygonCoords) {
                 drawPolygon(currentCanvasId, originalPolygonCoords);
             }
@@ -1861,10 +1930,6 @@
             
             document.querySelectorAll('.node-item').forEach(item => {
                 item.classList.remove('active');
-            });
-            
-            document.querySelectorAll('.coord-highlight').forEach(span => {
-                span.classList.remove('active');
             });
             
             if (currentCanvasId && originalPolygonCoords) {
@@ -1901,7 +1966,6 @@
             if (foundNode !== hoveredNodeIndex) {
                 if (foundNode >= 0) {
                     highlightNode(foundNode);
-                    // Show bubble for single canvas only
                     if (canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
                         showCoordBubble(foundNode, e.clientX, e.clientY);
                     }
@@ -1912,7 +1976,6 @@
                     }
                 }
             } else if (foundNode >= 0 && canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
-                // Update bubble position if still hovering same node
                 updateBubblePosition(e.clientX, e.clientY);
             }
         }
@@ -1923,7 +1986,6 @@
             const bubble = document.getElementById('coordBubble');
             const coord = currentPolygonCoords[nodeIndex];
             
-            // Format based on current mode
             const display1 = coord[0];
             const display2 = coord[1];
             const label = isOrbitMode ? 'Long, Lat' : 'Lat, Long';
@@ -1999,19 +2061,15 @@
                 const firstCoord = coords[0];
                 const lastCoord = coords[coords.length - 1];
                 
-                // Check if already closed
                 if (firstCoord[0] === lastCoord[0] && firstCoord[1] === lastCoord[1]) {
                     alert('Polygon is already closed!');
                     return;
                 }
                 
-                // Add first coordinate to the end
                 polygon.coordinates[0].push([firstCoord[0], firstCoord[1]]);
-                
-                // Update input
                 jsonInput.value = JSON.stringify(polygon);
                 
-                // Auto-validate
+                document.getElementById('toolsDropdown').classList.remove('active');
                 validateSingle();
                 
             } catch (e) {
@@ -2027,6 +2085,7 @@
             if (e.key === 'Escape') {
                 closeModal('vizModal');
                 closeModal('helpModal');
+                document.getElementById('toolsDropdown').classList.remove('active');
             }
         });
 
@@ -2048,7 +2107,6 @@
             }
         });
 
-        // Wait for DOM to be ready before adding bubble drag listeners
         document.addEventListener('DOMContentLoaded', function() {
             const coordBubble = document.getElementById('coordBubble');
             
@@ -2077,7 +2135,6 @@
             bubbleDragStartX = e.clientX;
             bubbleDragStartY = e.clientY;
             
-            // Update bubble position
             const bubble = document.getElementById('coordBubble');
             if (!bubble) return;
             
@@ -2098,12 +2155,11 @@
 
         const singleCanvas = document.getElementById('singleCanvas');
         
-        // Smooth zoom with mouse wheel
         singleCanvas.addEventListener('wheel', function(e) {
             if (!originalPolygonCoords || currentMode !== 'single') return;
             e.preventDefault();
             
-            const delta = e.deltaY > 0 ? 0.95 : 1.05; // Smooth increments
+            const delta = e.deltaY > 0 ? 0.95 : 1.05;
             const newZoom = zoomLevel * delta;
             
             if (newZoom >= 0.3 && newZoom <= 5) {
@@ -2112,7 +2168,6 @@
             }
         });
         
-        // Pan with click and drag
         singleCanvas.addEventListener('mousedown', function(e) {
             if (!originalPolygonCoords || currentMode !== 'single') return;
             isDraggingMap = true;
@@ -2129,7 +2184,7 @@
                 const deltaY = e.clientY - mapDragStartY;
                 
                 panOffsetX += deltaX;
-                panOffsetY -= deltaY;  // Inverted Y-axis for natural panning
+                panOffsetY -= deltaY;
                 
                 mapDragStartX = e.clientX;
                 mapDragStartY = e.clientY;
@@ -2158,7 +2213,7 @@
 
         singleCanvas.addEventListener('click', function(e) {
             if (!originalPolygonCoords || currentMode !== 'single') return;
-            if (isDraggingMap) return; // Don't lock if we were dragging
+            if (isDraggingMap) return;
             
             const rect = this.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
