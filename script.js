@@ -31,6 +31,18 @@ let polygonColumn = 'Polygon';
 let uploadedFile = null;
 let uploadedWorkbook = null;
 let processingErrors = [];
+let eudrPropertyMapping = {
+    ProducerName: null,
+    ProducerCountry: null,
+    ProductionPlace: null,
+    Area: '_calculate'
+};
+let activeFilters = {
+    shape: [],
+    states: [],
+    rules: []
+};
+let filteredData = [];
 
 // Tools dropdown toggle
 function toggleToolsDropdown() {
@@ -310,7 +322,68 @@ function handleFileUpload(file) {
             processBulkData(jsonData);
         };
         reader.readAsArrayBuffer(file);
+    } else if (extension === 'json') {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const jsonData = JSON.parse(e.target.result);
+                processEudrJson(jsonData);
+            } catch (error) {
+                alert('Invalid JSON file: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
     }
+}
+
+function processEudrJson(eudrData) {
+    if (eudrData.type !== 'FeatureCollection' || !eudrData.features) {
+        alert('Invalid EUDR JSON format. Expected FeatureCollection.');
+        return;
+    }
+    
+    // Convert EUDR features to table format
+    const tableData = eudrData.features.map((feature, index) => {
+        const props = feature.properties || {};
+        const geometry = feature.geometry;
+        
+        // Create a row object
+        const row = {
+            'ID': props.ProductionPlace || `Feature-${index + 1}`,
+            'ProducerName': props.ProducerName || '',
+            'ProducerCountry': props.ProducerCountry || '',
+            'ProductionPlace': props.ProductionPlace || '',
+            'Area': props.Area || 0,
+            'Polygon': geometry ? JSON.stringify(geometry) : ''
+        };
+        
+        return row;
+    });
+    
+    // Set columns
+    allColumns = ['ID', 'ProducerName', 'ProducerCountry', 'ProductionPlace', 'Area', 'Polygon'];
+    idColumn = 'ID';
+    polygonColumn = 'Polygon';
+    
+    // Show column mapping (but pre-populated)
+    const mappingSection = document.getElementById('columnMapping');
+    mappingSection.classList.remove('hidden');
+    
+    const idSelect = document.getElementById('idColumnSelect');
+    const polygonSelect = document.getElementById('polygonColumnSelect');
+    
+    idSelect.innerHTML = allColumns.map(col => 
+        `<option value="${col}" ${col === idColumn ? 'selected' : ''}>${col}</option>`
+    ).join('');
+    
+    polygonSelect.innerHTML = allColumns.map(col => 
+        `<option value="${col}" ${col === polygonColumn ? 'selected' : ''}>${col}</option>`
+    ).join('');
+    
+    updateMappingStatus();
+    
+    // Process as bulk data
+    processBulkData(tableData);
 }
 
 function detectColumns(data) {
@@ -472,6 +545,178 @@ function processBulkData(data) {
     updatePaginationControls();
 }
 
+function resetUpload() {
+    // Reset all state
+    bulkData = [];
+    originalBulkData = [];
+    selectedRows.clear();
+    currentPage = 1;
+    uploadedFile = null;
+    uploadedWorkbook = null;
+    processingErrors = [];
+    activeFilters = { shape: [], states: [], rules: [] };
+    filteredData = [];
+    
+    // Hide UI elements
+    document.getElementById('columnMapping').classList.add('hidden');
+    document.getElementById('bulkControls').classList.add('hidden');
+    document.getElementById('paginationControls').classList.add('hidden');
+    document.getElementById('bulkResults').innerHTML = '';
+    
+    // Reset file input
+    document.getElementById('fileInput').value = '';
+}
+
+// Filter functions
+function applyFilters() {
+    // Start with all data
+    filteredData = bulkData.map((item, idx) => ({...item, originalIndex: idx}));
+    
+    // Apply shape filter
+    if (activeFilters.shape.length > 0) {
+        filteredData = filteredData.filter(item => {
+            const shape = item.polygon ? (item.polygon.type || 'Polygon') : '-';
+            return activeFilters.shape.includes(shape);
+        });
+    }
+    
+    // Apply states filter (AND logic - must have ALL selected states)
+    if (activeFilters.states.length > 0) {
+        filteredData = filteredData.filter(item => {
+            const itemStates = item.states.map(s => s.text);
+            // Check if item has ALL selected states
+            return activeFilters.states.every(filterState => itemStates.includes(filterState));
+        });
+    }
+    
+    // Apply rules filter
+    if (activeFilters.rules.length > 0) {
+        filteredData = filteredData.filter(item => {
+            return activeFilters.rules.includes(item.handRule);
+        });
+    }
+    
+    // Update total pages based on filtered data
+    totalPages = Math.ceil(filteredData.length / pageSize);
+    if (totalPages === 0) totalPages = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+}
+
+function getUniqueValues(column) {
+    const valuesMap = new Map();
+    
+    bulkData.forEach(item => {
+        if (column === 'shape') {
+            const shape = item.polygon ? (item.polygon.type || 'Polygon') : '-';
+            valuesMap.set(shape, (valuesMap.get(shape) || 0) + 1);
+        } else if (column === 'states') {
+            item.states.forEach(state => {
+                valuesMap.set(state.text, (valuesMap.get(state.text) || 0) + 1);
+            });
+        } else if (column === 'rules') {
+            if (item.handRule) {
+                valuesMap.set(item.handRule, (valuesMap.get(item.handRule) || 0) + 1);
+            }
+        }
+    });
+    
+    return Array.from(valuesMap.entries()).map(([value, count]) => ({value, count}));
+}
+
+function toggleColumnFilter(column, event) {
+    event.stopPropagation();
+    
+    // Close other filter dropdowns
+    document.querySelectorAll('.column-filter-dropdown').forEach(d => {
+        if (!d.id.includes(column)) {
+            d.classList.remove('active');
+        }
+    });
+    
+    const dropdown = document.getElementById(`filter-${column}`);
+    if (dropdown) {
+        dropdown.classList.toggle('active');
+    }
+}
+
+function addFilterDropdowns() {
+    const headers = document.querySelectorAll('.filter-header');
+    
+    headers.forEach(header => {
+        const column = header.onclick.toString().match(/'(\w+)'/)[1];
+        
+        // Remove existing dropdown if any
+        const existingDropdown = document.getElementById(`filter-${column}`);
+        if (existingDropdown) existingDropdown.remove();
+        
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.id = `filter-${column}`;
+        dropdown.className = 'column-filter-dropdown';
+        
+        const uniqueValues = getUniqueValues(column);
+        
+        dropdown.innerHTML = uniqueValues.map(({value, count}) => {
+            const isChecked = activeFilters[column].includes(value);
+            return `
+                <div class="filter-option" onclick="toggleFilterOption('${column}', '${value}', event)">
+                    <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation()">
+                    <span class="filter-option-label">${value}</span>
+                    <span class="filter-option-count">(${count})</span>
+                </div>
+            `;
+        }).join('');
+        
+        header.appendChild(dropdown);
+        
+        // Update header appearance if filter is active
+        if (activeFilters[column].length > 0) {
+            header.classList.add('active');
+        } else {
+            header.classList.remove('active');
+        }
+    });
+}
+
+function toggleFilterOption(column, value, event) {
+    event.stopPropagation();
+    
+    const index = activeFilters[column].indexOf(value);
+    if (index > -1) {
+        activeFilters[column].splice(index, 1);
+    } else {
+        activeFilters[column].push(value);
+    }
+    
+    // Reset to page 1 when filters change
+    currentPage = 1;
+    
+    displayBulkResults();
+    updatePaginationControls();
+}
+
+function clearAllFilters() {
+    activeFilters = { shape: [], states: [], rules: [] };
+    currentPage = 1;
+    displayBulkResults();
+    updatePaginationControls();
+}
+
+function updateFilterIndicator() {
+    const indicator = document.getElementById('filterIndicator');
+    const hasActiveFilters = activeFilters.shape.length > 0 || 
+                            activeFilters.states.length > 0 || 
+                            activeFilters.rules.length > 0;
+    
+    if (hasActiveFilters) {
+        indicator.classList.remove('hidden');
+        document.getElementById('filteredCount').textContent = filteredData.length;
+        document.getElementById('totalRowsCount').textContent = bulkData.length;
+    } else {
+        indicator.classList.add('hidden');
+    }
+}
+
 function displayBulkResults() {
     const container = document.getElementById('bulkResults');
     
@@ -480,18 +725,25 @@ function displayBulkResults() {
         return;
     }
 
-    // Calculate pagination
+    // Apply filters to get filtered dataset
+    applyFilters();
+    
+    // Calculate pagination based on filtered data
     const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = Math.min(startIdx + pageSize, bulkData.length);
-    const pageData = bulkData.slice(startIdx, endIdx);
+    const endIdx = Math.min(startIdx + pageSize, filteredData.length);
+    const pageData = filteredData.slice(startIdx, endIdx);
 
     let html = '<table class="results-table"><thead><tr>';
     html += '<th><input type="checkbox" class="row-checkbox" id="headerCheckbox" onchange="togglePageSelection()"></th>';
-    html += '<th>ID</th><th>Polygon Shape</th><th>States</th><th>Rules Type</th><th style="width: 100px;">Tools</th><th style="width: 80px;"></th>';
+    html += '<th>ID</th>';
+    html += '<th class="filter-header" onclick="toggleColumnFilter(\'shape\', event)">Polygon Shape</th>';
+    html += '<th class="filter-header" onclick="toggleColumnFilter(\'states\', event)">States</th>';
+    html += '<th class="filter-header" onclick="toggleColumnFilter(\'rules\', event)">Rules Type</th>';
+    html += '<th style="width: 100px;">Tools</th><th style="width: 80px;"></th>';
     html += '</tr></thead><tbody>';
     
-    pageData.forEach((item, pageIdx) => {
-        const globalIdx = startIdx + pageIdx;
+    pageData.forEach((item) => {
+        const globalIdx = item.originalIndex;
         const isSelected = selectedRows.has(globalIdx);
         const shape = item.polygon ? (item.polygon.type || 'Polygon') : '-';
         const statesBadges = item.states.map(s => 
@@ -527,16 +779,22 @@ function displayBulkResults() {
     html += '</tbody></table>';
     container.innerHTML = html;
     
+    // Add filter dropdowns to the DOM
+    addFilterDropdowns();
+    
     updateSelectedCount();
+    updateFilterIndicator();
 }
 
 // Pagination functions
 function updatePaginationControls() {
+    const dataLength = filteredData.length || bulkData.length;
+    
     document.getElementById('currentPageNum').textContent = currentPage;
     document.getElementById('totalPages').textContent = totalPages;
-    document.getElementById('totalRows').textContent = bulkData.length;
+    document.getElementById('totalRows').textContent = dataLength;
     document.getElementById('showingRange').textContent = 
-        `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, bulkData.length)}`;
+        `${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, dataLength)}`;
     
     document.getElementById('firstPageBtn').disabled = currentPage === 1;
     document.getElementById('prevPageBtn').disabled = currentPage === 1;
@@ -560,17 +818,19 @@ function changePageSize() {
 }
 
 // Selection functions
-function toggleSelectAll() {
+function toggleSelectAllRows() {
     const isChecked = document.getElementById('selectAllCheckbox').checked;
-    const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = Math.min(startIdx + pageSize, bulkData.length);
     
-    for (let i = startIdx; i < endIdx; i++) {
-        if (isChecked) {
-            selectedRows.add(i);
-        } else {
-            selectedRows.delete(i);
-        }
+    if (isChecked) {
+        // Select all rows in filtered dataset
+        filteredData.forEach(item => {
+            selectedRows.add(item.originalIndex);
+        });
+    } else {
+        // Deselect all rows in filtered dataset
+        filteredData.forEach(item => {
+            selectedRows.delete(item.originalIndex);
+        });
     }
     
     displayBulkResults();
@@ -578,7 +838,7 @@ function toggleSelectAll() {
 }
 
 function togglePageSelection() {
-    toggleSelectAll();
+    toggleSelectAllRows();
 }
 
 function toggleRowSelection(idx) {
@@ -595,19 +855,19 @@ function updateSelectedCount() {
     document.getElementById('selectedCount').textContent = count;
     document.getElementById('fixSelectedBtn').disabled = count === 0;
     
-    // Update header checkbox state
-    const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = Math.min(startIdx + pageSize, bulkData.length);
-    let allSelected = true;
-    for (let i = startIdx; i < endIdx; i++) {
-        if (!selectedRows.has(i)) {
-            allSelected = false;
-            break;
-        }
-    }
+    // Update header checkbox state based on filtered data
+    const allFilteredSelected = filteredData.length > 0 && 
+        filteredData.every(item => selectedRows.has(item.originalIndex));
+    
     const headerCheckbox = document.getElementById('headerCheckbox');
     if (headerCheckbox) {
-        headerCheckbox.checked = allSelected && (endIdx > startIdx);
+        headerCheckbox.checked = allFilteredSelected;
+    }
+    
+    // Update main select all checkbox
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = allFilteredSelected;
     }
 }
 
@@ -623,7 +883,102 @@ function toggleRowTools(idx, event) {
         }
     });
     
+    // Update tool states before showing
+    updateRowToolStates(idx);
+    
+    // Toggle dropdown
+    const wasActive = dropdown.classList.contains('active');
     dropdown.classList.toggle('active');
+    
+    // Smart positioning: check if dropdown will go off-screen
+    if (dropdown.classList.contains('active')) {
+        const rect = dropdown.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.top;
+        
+        // If not enough space below (less than dropdown height + 20px buffer)
+        if (spaceBelow < 200) {
+            // Position above instead
+            dropdown.style.top = 'auto';
+            dropdown.style.bottom = 'calc(100% + 5px)';
+        } else {
+            // Default position below
+            dropdown.style.top = 'calc(100% + 5px)';
+            dropdown.style.bottom = 'auto';
+        }
+    }
+}
+
+function updateRowToolStates(idx) {
+    const item = bulkData[idx];
+    if (!item || !item.polygon) return;
+    
+    const dropdown = document.getElementById(`tools-${idx}`);
+    if (!dropdown) return;
+    
+    // Get current polygon state
+    try {
+        const polygon = JSON.parse(item.polygonStr);
+        const coords = polygon.coordinates[0];
+        
+        // Check if closed
+        const firstCoord = coords[0];
+        const lastCoord = coords[coords.length - 1];
+        const isClosed = (firstCoord[0] === lastCoord[0] && firstCoord[1] === lastCoord[1]);
+        
+        // Check if right hand rule
+        const convertedCoords = coords.map(coord => {
+            return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
+        });
+        const isRightHand = checkRightHandRule(convertedCoords);
+        
+        // Check for duplicates
+        const duplicates = findDuplicateNodes(convertedCoords);
+        
+        // Update dropdown items
+        const tools = dropdown.querySelectorAll('.row-tool-item');
+        tools.forEach(tool => {
+            const toolText = tool.textContent.trim();
+            
+            // Auto-Close: disable if already closed
+            if (toolText === 'Auto-Close Polygon') {
+                if (isClosed) {
+                    tool.classList.add('disabled');
+                } else {
+                    tool.classList.remove('disabled');
+                }
+            }
+            
+            // Convert to RHR: disable if already RHR
+            if (toolText === 'Convert to Right Hand Rule') {
+                if (isRightHand) {
+                    tool.classList.add('disabled');
+                } else {
+                    tool.classList.remove('disabled');
+                }
+            }
+            
+            // Remove Duplicates: disable if no duplicates
+            if (toolText === 'Remove Duplicate Nodes') {
+                if (duplicates.length === 0) {
+                    tool.classList.add('disabled');
+                } else {
+                    tool.classList.remove('disabled');
+                }
+            }
+            
+            // Undo: disable if not modified
+            if (toolText.includes('Undo')) {
+                if (!item.modified) {
+                    tool.classList.add('disabled');
+                } else {
+                    tool.classList.remove('disabled');
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Error updating tool states:', e);
+    }
 }
 
 // Close dropdowns when clicking outside
@@ -637,6 +992,12 @@ document.addEventListener('click', function(e) {
     if (!e.target.closest('.export-dropdown-container')) {
         document.getElementById('exportDropdown').classList.remove('active');
     }
+    
+    if (!e.target.closest('.filter-header')) {
+        document.querySelectorAll('.column-filter-dropdown').forEach(d => {
+            d.classList.remove('active');
+        });
+    }
 });
 
 function toggleExportDropdown() {
@@ -644,6 +1005,24 @@ function toggleExportDropdown() {
 }
 
 function applyRowTool(idx, tool) {
+    // Check if tool is disabled
+    const dropdown = document.getElementById(`tools-${idx}`);
+    const toolItems = dropdown.querySelectorAll('.row-tool-item');
+    let isDisabled = false;
+    
+    toolItems.forEach(item => {
+        if (item.onclick && item.onclick.toString().includes(tool)) {
+            if (item.classList.contains('disabled')) {
+                isDisabled = true;
+            }
+        }
+    });
+    
+    if (isDisabled) {
+        dropdown.classList.remove('active');
+        return;
+    }
+    
     const item = bulkData[idx];
     if (!item || !item.polygon || item.polygon.type === 'Point') return;
     
@@ -960,7 +1339,76 @@ function exportData(format) {
         exportXLSX();
     } else if (format === 'csv') {
         exportCSV();
+    } else if (format === 'eudr') {
+        startEudrExport();
     }
+}
+
+function startEudrExport() {
+    // Populate EUDR mapping dropdowns
+    const selects = ['eudrProducerName', 'eudrProducerCountry', 'eudrProductionPlace', 'eudrArea'];
+    
+    selects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (selectId === 'eudrArea') {
+            // Area has special auto-calculate option
+            select.innerHTML = '<option value="_calculate">📐 Auto-calculate from polygon</option>' +
+                allColumns.map(col => `<option value="${col}">${col}</option>`).join('');
+        } else {
+            select.innerHTML = '<option value="">-- Not mapped --</option>' +
+                allColumns.map(col => `<option value="${col}">${col}</option>`).join('');
+        }
+    });
+    
+    // Try auto-detect
+    autoDetectEudrMapping();
+    
+    // Show mapping modal
+    document.getElementById('eudrMappingModal').classList.add('active');
+}
+
+function autoDetectEudrMapping() {
+    // Auto-detect ProducerName
+    const producerNameCandidates = ['ProducerName', 'Producer Name', 'Producer', 'Name'];
+    const producerNameCol = allColumns.find(col => producerNameCandidates.some(c => col.toLowerCase().includes(c.toLowerCase())));
+    if (producerNameCol) document.getElementById('eudrProducerName').value = producerNameCol;
+    
+    // Auto-detect ProducerCountry
+    const countryCandidates = ['ProducerCountry', 'Producer Country', 'Country'];
+    const countryCol = allColumns.find(col => countryCandidates.some(c => col.toLowerCase().includes(c.toLowerCase())));
+    if (countryCol) document.getElementById('eudrProducerCountry').value = countryCol;
+    
+    // Auto-detect ProductionPlace
+    const placeCandidates = ['ProductionPlace', 'Production Place', 'Place', 'Location'];
+    const placeCol = allColumns.find(col => placeCandidates.some(c => col.toLowerCase().includes(c.toLowerCase())));
+    if (placeCol) document.getElementById('eudrProductionPlace').value = placeCol;
+    
+    // Auto-detect Area
+    const areaCandidates = ['Area', 'Hectares', 'Ha'];
+    const areaCol = allColumns.find(col => areaCandidates.some(c => col.toLowerCase() === c.toLowerCase()));
+    if (areaCol) {
+        document.getElementById('eudrArea').value = areaCol;
+    } else {
+        document.getElementById('eudrArea').value = '_calculate';
+    }
+}
+
+function proceedToFilename() {
+    // Save mapping
+    eudrPropertyMapping.ProducerName = document.getElementById('eudrProducerName').value;
+    eudrPropertyMapping.ProducerCountry = document.getElementById('eudrProducerCountry').value;
+    eudrPropertyMapping.ProductionPlace = document.getElementById('eudrProductionPlace').value;
+    eudrPropertyMapping.Area = document.getElementById('eudrArea').value;
+    
+    // Close mapping modal
+    document.getElementById('eudrMappingModal').classList.remove('active');
+    
+    // Set default filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 10);
+    document.getElementById('eudrFilename').value = `eudr_export_${timestamp}.json`;
+    
+    // Show filename modal
+    document.getElementById('eudrFilenameModal').classList.add('active');
 }
 
 function exportXLSX() {
@@ -1028,6 +1476,157 @@ function exportCSV() {
     } catch (e) {
         alert('Error exporting CSV: ' + e.message);
     }
+}
+
+function proceedToFilename() {
+    // Save mapping
+    eudrPropertyMapping.ProducerName = document.getElementById('eudrProducerName').value;
+    eudrPropertyMapping.ProducerCountry = document.getElementById('eudrProducerCountry').value;
+    eudrPropertyMapping.ProductionPlace = document.getElementById('eudrProductionPlace').value;
+    eudrPropertyMapping.Area = document.getElementById('eudrArea').value;
+    
+    // Close mapping modal
+    document.getElementById('eudrMappingModal').classList.remove('active');
+    
+    // Set default filename with timestamp
+    const timestamp = new Date().toISOString().slice(0, 10);
+    document.getElementById('eudrFilename').value = `eudr_export_${timestamp}.json`;
+    
+    // Show filename modal
+    document.getElementById('eudrFilenameModal').classList.add('active');
+}
+
+function executeEudrExport() {
+    const filename = document.getElementById('eudrFilename').value || 'eudr_export.json';
+    
+    // Build EUDR FeatureCollection
+    const features = [];
+    let validCount = 0;
+    let nullGeometryCount = 0;
+    let pointGeometryCount = 0;
+    
+    bulkData.forEach(item => {
+        try {
+            // Build properties
+            const properties = {};
+            
+            if (eudrPropertyMapping.ProducerName && item.fullRow[eudrPropertyMapping.ProducerName]) {
+                properties.ProducerName = item.fullRow[eudrPropertyMapping.ProducerName];
+            }
+            
+            if (eudrPropertyMapping.ProducerCountry && item.fullRow[eudrPropertyMapping.ProducerCountry]) {
+                properties.ProducerCountry = item.fullRow[eudrPropertyMapping.ProducerCountry];
+            }
+            
+            if (eudrPropertyMapping.ProductionPlace && item.fullRow[eudrPropertyMapping.ProductionPlace]) {
+                properties.ProductionPlace = item.fullRow[eudrPropertyMapping.ProductionPlace];
+            }
+            
+            // Handle Area
+            let area = 0;
+            if (eudrPropertyMapping.Area === '_calculate') {
+                // Calculate from polygon
+                if (item.polygon && item.polygon.type === 'Polygon' && item.polygon.coordinates) {
+                    area = calculateAreaInHectares(item.polygon.coordinates[0]);
+                }
+            } else if (eudrPropertyMapping.Area && item.fullRow[eudrPropertyMapping.Area]) {
+                area = parseFloat(item.fullRow[eudrPropertyMapping.Area]) || 0;
+            }
+            properties.Area = parseFloat(area.toFixed(2));
+            
+            // Handle geometry
+            let geometry = null;
+            if (item.polygon) {
+                if (item.polygon.type === 'Point') {
+                    geometry = item.polygon;
+                    pointGeometryCount++;
+                } else if (item.polygon.type === 'Polygon') {
+                    // Convert coordinates based on mode
+                    const coords = item.polygon.coordinates[0].map(coord => {
+                        // EUDR uses [longitude, latitude] (standard GeoJSON)
+                        // If in Origin mode, coordinates are [lat, long] - need to swap
+                        // If in Orbit mode, coordinates are [long, lat] - keep as is
+                        return isOrbitMode ? [coord[0], coord[1]] : [coord[1], coord[0]];
+                    });
+                    
+                    geometry = {
+                        type: 'Polygon',
+                        coordinates: [coords]
+                    };
+                    validCount++;
+                }
+            } else {
+                nullGeometryCount++;
+            }
+            
+            features.push({
+                type: 'Feature',
+                properties: properties,
+                geometry: geometry
+            });
+        } catch (e) {
+            console.error('Error processing row:', e);
+        }
+    });
+    
+    const eudrJson = {
+        type: 'FeatureCollection',
+        features: features
+    };
+    
+    // Download file
+    const blob = new Blob([JSON.stringify(eudrJson, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Close modal
+    document.getElementById('eudrFilenameModal').classList.remove('active');
+    
+    // Show summary
+    let summary = `✅ EUDR JSON exported successfully!\n\n`;
+    summary += `✓ ${validCount} valid polygons\n`;
+    if (nullGeometryCount > 0) summary += `⚠️ ${nullGeometryCount} features with null geometry\n`;
+    if (pointGeometryCount > 0) summary += `⚠️ ${pointGeometryCount} features with Point geometry\n`;
+    if (nullGeometryCount > 0 || pointGeometryCount > 0) {
+        summary += `\nℹ️ These may need review for EUDR compliance`;
+    }
+    
+    alert(summary);
+}
+
+function calculateAreaInHectares(coordinates) {
+    if (!coordinates || coordinates.length < 3) return 0;
+    
+    // Use spherical excess formula for area calculation
+    // This is a simplified version - for production use a library like Turf.js
+    
+    let area = 0;
+    const R = 6378137; // Earth's radius in meters
+    
+    for (let i = 0; i < coordinates.length - 1; i++) {
+        const p1 = coordinates[i];
+        const p2 = coordinates[i + 1];
+        
+        // Convert to radians
+        const lat1 = p1[1] * Math.PI / 180;
+        const lat2 = p2[1] * Math.PI / 180;
+        const lon1 = p1[0] * Math.PI / 180;
+        const lon2 = p2[0] * Math.PI / 180;
+        
+        area += (lon2 - lon1) * (2 + Math.sin(lat1) + Math.sin(lat2));
+    }
+    
+    area = Math.abs(area * R * R / 2);
+    
+    // Convert from square meters to hectares (1 hectare = 10,000 m²)
+    return area / 10000;
 }
 
 function validateSingle() {
@@ -1640,6 +2239,8 @@ document.addEventListener('keydown', function(e) {
         closeModal('vizModal');
         closeModal('helpModal');
         closeModal('reportModal');
+        closeModal('eudrMappingModal');
+        closeModal('eudrFilenameModal');
         document.getElementById('toolsDropdown').classList.remove('active');
         document.getElementById('exportDropdown').classList.remove('active');
         
