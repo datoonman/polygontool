@@ -90,9 +90,9 @@
                 <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                     <div class="upload-icon">📁</div>
                     <h3>Drop your file here or click to browse</h3>
-                    <p style="color: #64748b; margin-top: 8px;">Supports CSV, XLSX, XLS</p>
-                    <p style="color: #64748b; margin-top: 4px; font-size: 0.9em;">Required columns: <code>ID</code> and <code>Polygon</code></p>
-                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls" onchange="handleFile(event)">
+                    <p style="color: #64748b; margin-top: 8px;">Supports CSV, XLSX, XLS, JSON</p>
+                    <p style="color: #64748b; margin-top: 4px; font-size: 0.9em;">Required columns: <code>ID</code> and <code>Polygon</code> (or EUDR JSON format)</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls,.json" onchange="handleFile(event)">
                 </div>
 
                 <!-- Column Mapping Section -->
@@ -118,9 +118,13 @@
                 <div id="bulkControls" class="hidden bulk-control-bar">
                     <div class="control-left">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
-                            <span>Select All on Page (<span id="selectedCount">0</span> selected)</span>
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAllRows()">
+                            <span>Select All Rows (<span id="selectedCount">0</span> selected)</span>
                         </label>
+                        <div id="filterIndicator" class="filter-indicator hidden">
+                            Filtered: <span id="filteredCount">0</span> of <span id="totalRowsCount">0</span> rows
+                            <button class="clear-filters-btn" onclick="clearAllFilters()">Clear Filters</button>
+                        </div>
                     </div>
                     <div class="control-right">
                         <button class="btn-action" id="fixSelectedBtn" onclick="fixSelected()" disabled>
@@ -133,6 +137,7 @@
                             <div class="export-dropdown" id="exportDropdown">
                                 <div class="export-item" onclick="exportData('xlsx')">Export as XLSX</div>
                                 <div class="export-item" onclick="exportData('csv')">Export as CSV</div>
+                                <div class="export-item" onclick="exportData('eudr')">Export as EUDR JSON</div>
                             </div>
                         </div>
                         <button class="btn-secondary" onclick="revertToOriginal()">
@@ -166,6 +171,75 @@
     </div>
 
     <button class="help-btn" onclick="openHelp()">?</button>
+
+    <!-- EUDR Property Mapping Modal -->
+    <div class="modal" id="eudrMappingModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>🌍 EUDR Property Mapping</h2>
+                <button class="close-btn" onclick="closeModal('eudrMappingModal')">×</button>
+            </div>
+            <div style="padding: 30px;">
+                <p style="color: #64748b; margin-bottom: 20px;">Map your Excel columns to EUDR properties:</p>
+                
+                <div class="mapping-field" style="margin-bottom: 16px;">
+                    <label>ProducerName:</label>
+                    <select id="eudrProducerName" class="eudr-mapping-select"></select>
+                </div>
+                
+                <div class="mapping-field" style="margin-bottom: 16px;">
+                    <label>ProducerCountry:</label>
+                    <select id="eudrProducerCountry" class="eudr-mapping-select"></select>
+                </div>
+                
+                <div class="mapping-field" style="margin-bottom: 16px;">
+                    <label>ProductionPlace:</label>
+                    <select id="eudrProductionPlace" class="eudr-mapping-select"></select>
+                </div>
+                
+                <div class="mapping-field" style="margin-bottom: 16px;">
+                    <label>Area (Hectares):</label>
+                    <select id="eudrArea" class="eudr-mapping-select">
+                        <option value="_calculate">📐 Auto-calculate from polygon</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button class="btn-secondary" onclick="autoDetectEudrMapping()" style="flex: 1;">
+                        🔍 Auto-Detect
+                    </button>
+                    <button class="btn-primary" onclick="proceedToFilename()" style="flex: 1;">
+                        Next: Choose Filename
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EUDR Filename Modal -->
+    <div class="modal" id="eudrFilenameModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>💾 Export EUDR JSON</h2>
+                <button class="close-btn" onclick="closeModal('eudrFilenameModal')">×</button>
+            </div>
+            <div style="padding: 30px;">
+                <div class="mapping-field">
+                    <label>Filename:</label>
+                    <input type="text" id="eudrFilename" class="eudr-filename-input" value="">
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button class="btn-secondary" onclick="closeModal('eudrFilenameModal')">
+                        Cancel
+                    </button>
+                    <button class="btn-primary" onclick="executeEudrExport()" style="flex: 1;">
+                        Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Processing Report Modal -->
     <div class="modal" id="reportModal">
