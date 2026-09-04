@@ -4,21 +4,15 @@ let bulkData = [];
 let originalBulkData = []; // Store original for revert
 let currentPolygonCoords = null;
 let originalPolygonCoords = null;
-let hoveredNodeIndex = null;
-let currentCanvasId = null;
-let lockedNodeIndex = null;
-let isDraggingBubble = false;
-let bubbleDragStartX = 0;
-let bubbleDragStartY = 0;
-let bubbleOffsetX = 0;
-let bubbleOffsetY = 0;
 
-let zoomLevel = 1;
-let panOffsetX = 0;
-let panOffsetY = 0;
-let isDraggingMap = false;
-let mapDragStartX = 0;
-let mapDragStartY = 0;
+let singleMap = null;
+let modalMap = null;
+let singleMapLayer = null;
+let modalMapLayer = null;
+let modalMarkers = [];
+
+const TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 // Bulk page pagination and selection
 let currentPage = 1;
@@ -262,6 +256,10 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
         currentMode = this.dataset.mode;
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         document.getElementById(currentMode + 'View').classList.add('active');
+
+        if (currentMode === 'single' && singleMap) {
+            setTimeout(() => singleMap.invalidateSize(), 0);
+        }
     });
 });
 
@@ -1637,11 +1635,11 @@ function validateSingle() {
         
         if (polygon.type === 'Point') {
             displaySingleResults(polygon, {states: [{text: 'Point', type: 'warning'}], handRule: ''}, 1);
-            
-            const canvas = document.getElementById('singleCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
+            initSingleMap();
+            singleMapLayer.clearLayers();
+            singleMap.setView([0, 0], 2);
+
             document.getElementById('jsonDisplay').classList.remove('hidden');
             document.getElementById('jsonDisplayContent').innerHTML = '<pre style="margin: 0; font-family: inherit;">' + JSON.stringify(polygon, null, 2) + '</pre>';
             return;
@@ -1662,12 +1660,11 @@ function validateSingle() {
         const validation = validatePolygon(originalPolygonCoords);
         
         displaySingleResults(polygon, validation, coords.length);
-        
-        zoomLevel = 1;
-        panOffsetX = 0;
-        panOffsetY = 0;
-        
-        drawPolygon('singleCanvas', originalPolygonCoords);
+
+        const map = initSingleMap();
+        renderPolygonOnMap(map, singleMapLayer, originalPolygonCoords);
+        fitPolygonBounds(map, originalPolygonCoords);
+        setTimeout(() => map.invalidateSize(), 0);
         displayJsonWithHighlight(polygon);
         
         // Update tools state
@@ -1726,19 +1723,12 @@ function clearSingle() {
     document.getElementById('jsonInput').value = '';
     document.getElementById('singleResults').innerHTML = '';
     document.getElementById('jsonDisplay').classList.add('hidden');
-    
-    const canvas = document.getElementById('singleCanvas');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
+    if (singleMapLayer) singleMapLayer.clearLayers();
+    if (singleMap) singleMap.setView([0, 0], 2);
+
     originalPolygonCoords = null;
     currentPolygonCoords = null;
-    hoveredNodeIndex = null;
-    lockedNodeIndex = null;
-    zoomLevel = 1;
-    panOffsetX = 0;
-    panOffsetY = 0;
-    hideCoordBubble();
 }
 
 function displaySingleResults(polygon, validation, nodeCount) {
@@ -1842,138 +1832,94 @@ function checkRightHandRule(coords) {
     return area > 0;
 }
 
-function drawPolygon(canvasId, coords) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext('2d');
-    
-    currentCanvasId = canvasId;
-    
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    if (coords.length < 2) return;
-    
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    coords.forEach(coord => {
-        const x = coord[0];
-        const y = coord[1];
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-    });
-    
-    const padding = 60;
-    const baseScaleX = (canvas.width - padding * 2) / (maxX - minX || 1);
-    const baseScaleY = (canvas.height - padding * 2) / (maxY - minY || 1);
-    const baseScale = Math.min(baseScaleX, baseScaleY);
-    
-    const scale = baseScale * zoomLevel;
-    
-    const baseOffsetX = (canvas.width - (maxX - minX) * baseScale) / 2 - minX * baseScale;
-    const baseOffsetY = (canvas.height - (maxY - minY) * baseScale) / 2 - minY * baseScale;
-    
-    const offsetX = baseOffsetX + panOffsetX;
-    const offsetY = baseOffsetY + panOffsetY;
-    
-    canvas.coordTransform = { scale, offsetX, offsetY, minX, minY, maxX, maxY };
-    
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 2;
-    ctx.fillStyle = 'rgba(37, 99, 235, 0.1)';
-    
-    ctx.beginPath();
-    coords.forEach((coord, i) => {
-        const x = coord[0];
-        const y = coord[1];
-        const px = x * scale + offsetX;
-        const py = canvas.height - (y * scale + offsetY);
-        
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    
-    const nodeSize = coords.length > 100 ? 4 : 6;
+function initSingleMap() {
+    if (singleMap) return singleMap;
+
+    singleMap = L.map('singleCanvas', { attributionControl: true }).setView([0, 0], 2);
+    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(singleMap);
+    singleMapLayer = L.layerGroup().addTo(singleMap);
+
+    return singleMap;
+}
+
+function initModalMap() {
+    if (modalMap) return modalMap;
+
+    modalMap = L.map('modalCanvas', { attributionControl: true }).setView([0, 0], 2);
+    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(modalMap);
+    modalMapLayer = L.layerGroup().addTo(modalMap);
+
+    return modalMap;
+}
+
+function fitPolygonBounds(map, coords) {
+    if (!coords || coords.length === 0) return;
+    const latlngs = coords.map(coord => [coord[1], coord[0]]);
+    map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 18 });
+}
+
+// Renders a polygon + numbered nodes onto a Leaflet map. `markers`, when passed,
+// is filled in index order so the bulk-viz node list can hover-sync with the map.
+function renderPolygonOnMap(map, layerGroup, coords, markers) {
+    layerGroup.clearLayers();
+    if (markers) markers.length = 0;
+
+    if (!coords || coords.length < 2) return;
+
+    const latlngs = coords.map(coord => [coord[1], coord[0]]);
+
+    L.polygon(latlngs, {
+        color: '#2563eb',
+        weight: 2,
+        fillColor: '#2563eb',
+        fillOpacity: 0.1
+    }).addTo(layerGroup);
+
     const duplicates = findDuplicateNodes(coords);
-    
+    const nodeRadius = coords.length > 100 ? 4 : 6;
+    const coordLabel = isOrbitMode ? 'Long, Lat' : 'Lat, Long';
+
+    const addNodeMarker = (coord, i) => {
+        const isStart = i === 0;
+        const baseColor = isStart ? '#f59e0b' : (duplicates.includes(i) ? '#ef4444' : '#2563eb');
+
+        const marker = L.circleMarker([coord[1], coord[0]], {
+            radius: nodeRadius,
+            color: 'white',
+            weight: 2,
+            fillColor: baseColor,
+            fillOpacity: 1
+        }).addTo(layerGroup);
+
+        marker._baseColor = baseColor;
+        if (isStart) marker.setZIndexOffset && marker.setZIndexOffset(1000);
+
+        marker.bindTooltip(String(i + 1), {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -6],
+            className: 'node-number-tooltip',
+            interactive: false
+        });
+
+        marker.bindPopup(`Node ${i + 1}: [${coord[0]}, ${coord[1]}] (${coordLabel})`);
+
+        if (markers) {
+            marker.on('mouseover', () => highlightNode(i));
+            marker.on('mouseout', () => unhighlightNode());
+            markers[i] = marker;
+        } else {
+            marker.on('mouseover', () => marker.setStyle({ fillColor: '#16a34a' }));
+            marker.on('mouseout', () => marker.setStyle({ fillColor: marker._baseColor }));
+        }
+    };
+
+    // Draw the closing/duplicate-of-first node before node 0, so node 0 (start) stays on top.
     coords.forEach((coord, i) => {
         if (i === 0) return;
-        
-        const x = coord[0];
-        const y = coord[1];
-        const px = x * scale + offsetX;
-        const py = canvas.height - (y * scale + offsetY);
-        
-        let fillColor;
-        if (hoveredNodeIndex === i) {
-            fillColor = '#16a34a';
-        } else if (duplicates.includes(i)) {
-            fillColor = '#ef4444';
-        } else {
-            fillColor = '#2563eb';
-        }
-        
-        ctx.beginPath();
-        ctx.arc(px, py, nodeSize, 0, Math.PI * 2);
-        ctx.fillStyle = fillColor;
-        ctx.fill();
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.fillStyle = '#1e293b';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        const numOffset = 15;
-        let numX = px;
-        let numY = py - numOffset;
-        
-        if (py < 30) numY = py + numOffset;
-        
-        ctx.fillStyle = 'white';
-        ctx.fillRect(numX - 10, numY - 8, 20, 16);
-        
-        ctx.fillStyle = '#1e293b';
-        ctx.fillText((i + 1).toString(), numX, numY);
+        addNodeMarker(coord, i);
     });
-    
-    const firstCoord = coords[0];
-    const x0 = firstCoord[0];
-    const y0 = firstCoord[1];
-    const px0 = x0 * scale + offsetX;
-    const py0 = canvas.height - (y0 * scale + offsetY);
-    
-    ctx.beginPath();
-    ctx.arc(px0, py0, nodeSize, 0, Math.PI * 2);
-    ctx.fillStyle = hoveredNodeIndex === 0 ? '#16a34a' : '#f59e0b';
-    ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    
-    ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    const numOffset0 = 15;
-    let numX0 = px0;
-    let numY0 = py0 - numOffset0;
-    
-    if (py0 < 30) numY0 = py0 + numOffset0;
-    
-    ctx.fillStyle = 'white';
-    ctx.fillRect(numX0 - 10, numY0 - 8, 20, 16);
-    
-    ctx.fillStyle = '#1e293b';
-    ctx.fillText('1', numX0, numY0);
+    addNodeMarker(coords[0], 0);
 }
 
 function visualizePolygon(index) {
@@ -1993,7 +1939,10 @@ function visualizePolygon(index) {
     document.getElementById('nodeCount').textContent = actualNodeCount;
     
     setTimeout(() => {
-        drawPolygon('modalCanvas', originalPolygonCoords);
+        const map = initModalMap();
+        map.invalidateSize();
+        renderPolygonOnMap(map, modalMapLayer, originalPolygonCoords, modalMarkers);
+        fitPolygonBounds(map, originalPolygonCoords);
     }, 100);
     
     const nodeList = document.getElementById('nodeList');
@@ -2035,132 +1984,35 @@ function visualizePolygon(index) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
-    hoveredNodeIndex = null;
-    
+    unhighlightNode();
+
     // Clear report data when closing report modal
     if (modalId === 'reportModal') {
         processingErrors = [];
     }
 }
 
+// Bulk-viz node list <-> map marker hover sync (modal view only)
 function highlightNode(index) {
-    hoveredNodeIndex = index;
-    
     document.querySelectorAll('.node-item').forEach((item, i) => {
-        if (i === index) {
-            item.classList.add('active');
-        } else {
-            item.classList.remove('active');
-        }
+        item.classList.toggle('active', i === index);
     });
-    
-    if (currentCanvasId && originalPolygonCoords) {
-        drawPolygon(currentCanvasId, originalPolygonCoords);
+
+    const marker = modalMarkers[index];
+    if (marker) {
+        marker.setStyle({ fillColor: '#16a34a' });
+        marker.openTooltip();
     }
 }
 
 function unhighlightNode() {
-    hoveredNodeIndex = null;
-    
     document.querySelectorAll('.node-item').forEach(item => {
         item.classList.remove('active');
     });
-    
-    if (currentCanvasId && originalPolygonCoords) {
-        drawPolygon(currentCanvasId, originalPolygonCoords);
-    }
-}
 
-function handleCanvasHover(e, canvas, coords) {
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    const transform = canvas.coordTransform;
-    if (!transform) return;
-    
-    const { scale, offsetX, offsetY } = transform;
-    
-    let foundNode = -1;
-    const threshold = 12;
-    
-    for (let i = 0; i < coords.length; i++) {
-        const x = coords[i][0];
-        const y = coords[i][1];
-        const px = x * scale + offsetX;
-        const py = canvas.height - (y * scale + offsetY);
-        
-        const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
-        if (dist < threshold) {
-            foundNode = i;
-            break;
-        }
-    }
-    
-    if (foundNode !== hoveredNodeIndex) {
-        if (foundNode >= 0) {
-            highlightNode(foundNode);
-            if (canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
-                showCoordBubble(foundNode, e.clientX, e.clientY);
-            }
-        } else {
-            unhighlightNode();
-            if (canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
-                hideCoordBubble();
-            }
-        }
-    } else if (foundNode >= 0 && canvas.id === 'singleCanvas' && lockedNodeIndex === null) {
-        updateBubblePosition(e.clientX, e.clientY);
-    }
-}
-
-function showCoordBubble(nodeIndex, mouseX, mouseY) {
-    if (!currentPolygonCoords) return;
-    
-    const bubble = document.getElementById('coordBubble');
-    const coord = currentPolygonCoords[nodeIndex];
-    
-    const display1 = coord[0];
-    const display2 = coord[1];
-    const label = isOrbitMode ? 'Long, Lat' : 'Lat, Long';
-    
-    bubble.textContent = `Node ${nodeIndex + 1}: [${display1}, ${display2}] (${label})`;
-    bubble.classList.add('active');
-    
-    updateBubblePosition(mouseX, mouseY);
-}
-
-function updateBubblePosition(mouseX, mouseY) {
-    const bubble = document.getElementById('coordBubble');
-    const container = document.getElementById('mapContainer');
-    const rect = container.getBoundingClientRect();
-    
-    let bubbleX = mouseX - rect.left + bubbleOffsetX;
-    let bubbleY = mouseY - rect.top - 40 + bubbleOffsetY;
-    
-    bubble.style.left = bubbleX + 'px';
-    bubble.style.top = bubbleY + 'px';
-    bubble.style.transform = 'translateX(-50%)';
-}
-
-function hideCoordBubble() {
-    const bubble = document.getElementById('coordBubble');
-    bubble.classList.remove('active');
-    bubbleOffsetX = 0;
-    bubbleOffsetY = 0;
-}
-
-function lockCoordBubble(nodeIndex) {
-    const bubble = document.getElementById('coordBubble');
-    lockedNodeIndex = nodeIndex;
-    bubble.classList.add('locked');
-}
-
-function unlockCoordBubble() {
-    const bubble = document.getElementById('coordBubble');
-    lockedNodeIndex = null;
-    bubble.classList.remove('locked');
-    hideCoordBubble();
+    modalMarkers.forEach(marker => {
+        if (marker) marker.setStyle({ fillColor: marker._baseColor });
+    });
 }
 
 function autoClosePolygon() {
@@ -2261,167 +2113,14 @@ document.querySelectorAll('.modal').forEach(modal => {
 
 window.addEventListener('resize', function() {
     if (originalPolygonCoords) {
-        if (currentMode === 'single') {
-            drawPolygon('singleCanvas', originalPolygonCoords);
-        } else if (document.getElementById('vizModal').classList.contains('active')) {
-            drawPolygon('modalCanvas', originalPolygonCoords);
+        if (currentMode === 'single' && singleMap) {
+            singleMap.invalidateSize();
+        } else if (document.getElementById('vizModal').classList.contains('active') && modalMap) {
+            modalMap.invalidateSize();
         }
     }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    const coordBubble = document.getElementById('coordBubble');
-    
-    if (coordBubble) {
-        coordBubble.addEventListener('mousedown', function(e) {
-            if (!this.classList.contains('locked')) return;
-            
-            isDraggingBubble = true;
-            bubbleDragStartX = e.clientX;
-            bubbleDragStartY = e.clientY;
-            this.classList.add('dragging');
-            e.stopPropagation();
-        });
-    }
-});
-
-document.addEventListener('mousemove', function(e) {
-    if (!isDraggingBubble) return;
-    
-    const deltaX = e.clientX - bubbleDragStartX;
-    const deltaY = e.clientY - bubbleDragStartY;
-    
-    bubbleOffsetX += deltaX;
-    bubbleOffsetY += deltaY;
-    
-    bubbleDragStartX = e.clientX;
-    bubbleDragStartY = e.clientY;
-    
-    const bubble = document.getElementById('coordBubble');
-    if (!bubble) return;
-    
-    const currentLeft = parseFloat(bubble.style.left) || 0;
-    const currentTop = parseFloat(bubble.style.top) || 0;
-    
-    bubble.style.left = (currentLeft + deltaX) + 'px';
-    bubble.style.top = (currentTop + deltaY) + 'px';
-});
-
-document.addEventListener('mouseup', function() {
-    if (isDraggingBubble) {
-        isDraggingBubble = false;
-        const bubble = document.getElementById('coordBubble');
-        if (bubble) bubble.classList.remove('dragging');
-    }
-});
-
-const singleCanvas = document.getElementById('singleCanvas');
-
-singleCanvas.addEventListener('wheel', function(e) {
-    // Zoom disabled - only pan/drag is available
-    // if (!originalPolygonCoords || currentMode !== 'single') return;
-    // e.preventDefault();
-    // 
-    // const delta = e.deltaY > 0 ? 0.95 : 1.05;
-    // const newZoom = zoomLevel * delta;
-    // 
-    // if (newZoom >= 0.3 && newZoom <= 5) {
-    //     zoomLevel = newZoom;
-    //     drawPolygon('singleCanvas', originalPolygonCoords);
-    // }
-});
-
-singleCanvas.addEventListener('mousedown', function(e) {
-    if (!originalPolygonCoords || currentMode !== 'single') return;
-    isDraggingMap = true;
-    mapDragStartX = e.clientX;
-    mapDragStartY = e.clientY;
-    singleCanvas.style.cursor = 'grabbing';
-});
-
-singleCanvas.addEventListener('mousemove', function(e) {
-    if (!originalPolygonCoords || currentMode !== 'single') return;
-    
-    if (isDraggingMap) {
-        const deltaX = e.clientX - mapDragStartX;
-        const deltaY = e.clientY - mapDragStartY;
-        
-        panOffsetX += deltaX;
-        panOffsetY -= deltaY;
-        
-        mapDragStartX = e.clientX;
-        mapDragStartY = e.clientY;
-        
-        drawPolygon('singleCanvas', originalPolygonCoords);
-    } else {
-        handleCanvasHover(e, this, originalPolygonCoords);
-    }
-});
-
-singleCanvas.addEventListener('mouseup', function() {
-    if (currentMode !== 'single') return;
-    isDraggingMap = false;
-    singleCanvas.style.cursor = 'crosshair';
-});
-
-singleCanvas.addEventListener('mouseleave', function() {
-    if (currentMode !== 'single') return;
-    isDraggingMap = false;
-    singleCanvas.style.cursor = 'crosshair';
-    if (lockedNodeIndex === null) {
-        unhighlightNode();
-        hideCoordBubble();
-    }
-});
-
-singleCanvas.addEventListener('click', function(e) {
-    if (!originalPolygonCoords || currentMode !== 'single') return;
-    if (isDraggingMap) return;
-    
-    const rect = this.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    
-    const transform = this.coordTransform;
-    if (!transform) return;
-    
-    const { scale, offsetX, offsetY } = transform;
-    
-    let foundNode = -1;
-    const threshold = 12;
-    
-    for (let i = 0; i < originalPolygonCoords.length; i++) {
-        const x = originalPolygonCoords[i][0];
-        const y = originalPolygonCoords[i][1];
-        const px = x * scale + offsetX;
-        const py = this.height - (y * scale + offsetY);
-        
-        const dist = Math.sqrt(Math.pow(mouseX - px, 2) + Math.pow(mouseY - py, 2));
-        if (dist < threshold) {
-            foundNode = i;
-            break;
-        }
-    }
-    
-    if (foundNode >= 0) {
-        if (lockedNodeIndex === foundNode) {
-            unlockCoordBubble();
-        } else {
-            lockCoordBubble(foundNode);
-            showCoordBubble(foundNode, e.clientX, e.clientY);
-        }
-    } else {
-        unlockCoordBubble();
-    }
-});
-
-const modalCanvas = document.getElementById('modalCanvas');
-
-modalCanvas.addEventListener('mousemove', function(e) {
-    if (!originalPolygonCoords) return;
-    handleCanvasHover(e, this, originalPolygonCoords);
-});
-
-modalCanvas.addEventListener('mouseleave', function() {
-    unhighlightNode();
+    initSingleMap();
 });

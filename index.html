@@ -6,12 +6,14 @@
     <title>Polygon Validator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🗺️ Polygon Validator</h1>
+            <h1>Polygon Validator</h1>
             <p class="subtitle">Validate and visualize polygon geometries</p>
         </div>
 
@@ -42,8 +44,7 @@
                     <div>
                         <h3 style="margin-bottom: 12px; color: #1e293b;">Visualization</h3>
                         <div class="map-container" id="mapContainer">
-                            <canvas class="map-canvas" id="singleCanvas"></canvas>
-                            <div class="coord-bubble" id="coordBubble"></div>
+                            <div class="map-canvas" id="singleCanvas"></div>
                         </div>
                         <div id="singleResults"></div>
                     </div>
@@ -269,7 +270,7 @@
             </div>
             <div class="modal-body">
                 <div class="modal-map">
-                    <canvas class="map-canvas" id="modalCanvas"></canvas>
+                    <div class="map-canvas" id="modalCanvas"></div>
                 </div>
                 <div class="modal-sidebar">
                     <div class="section-title">Nodes (<span id="nodeCount">0</span>)</div>
@@ -335,12 +336,25 @@
                 <h3>🔧 Version History & Patch Notes</h3>
                 
                 <div class="version-section">
+                    <div class="version-header" onclick="toggleVersion('v32')">
+                        <span class="version-badge">v32</span>
+                        <span>Latest - Real Basemap (Leaflet + OpenStreetMap)</span>
+                        <span id="v32-arrow">▼</span>
+                    </div>
+                    <div class="version-content" id="v32-content">
+                        <div class="version-item">• Replaced the hand-drawn canvas map with a real, pannable/zoomable OpenStreetMap basemap (via Leaflet)</div>
+                        <div class="version-item">• Coordinate tooltip now appears on node hover and pins open on click (replaces the draggable coordinate bubble)</div>
+                        <div class="version-item">• View now auto-fits to the polygon's bounds on load, with native zoom/pan</div>
+                    </div>
+                </div>
+
+                <div class="version-section">
                     <div class="version-header" onclick="toggleVersion('v31')">
                         <span class="version-badge">v31</span>
-                        <span>Latest - Improved Right Hand Rule Conversion</span>
+                        <span>Improved Right Hand Rule Conversion</span>
                         <span id="v31-arrow">▼</span>
                     </div>
-                    <div class="version-content" id="v31-content">
+                    <div class="version-content collapsed" id="v31-content">
                         <div class="version-item">• Fixed: Right Hand Rule conversion now properly handles unclosed polygons</div>
                         <div class="version-item">• Fixed: First node now remains as starting point during conversion (both closed & unclosed)</div>
                         <div class="version-item">• Improved: Unclosed polygons are converted without auto-closing, preserving "Auto-Close" utility</div>

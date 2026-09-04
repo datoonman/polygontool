@@ -199,55 +199,29 @@ h1 {
     overflow: hidden;
 }
 
-.coord-bubble {
-    position: absolute;
-    background: #1e293b;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 0.85em;
-    font-family: 'Courier New', monospace;
-    pointer-events: none;
-    z-index: 10;
-    white-space: nowrap;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    opacity: 0;
-    transition: opacity 0.2s;
-    cursor: default;
-}
-
-.coord-bubble.active {
-    opacity: 1;
-}
-
-.coord-bubble.locked {
-    background: #2563eb;
-    pointer-events: auto;
-    cursor: move;
-}
-
-.coord-bubble.dragging {
-    cursor: grabbing;
-}
-
-.coord-bubble::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: #1e293b;
-}
-
-.coord-bubble.locked::after {
-    border-top-color: #2563eb;
-}
-
 .map-canvas {
     width: 100%;
     height: 100%;
-    cursor: crosshair;
+}
+
+.node-number-tooltip {
+    background: white !important;
+    color: #1e293b !important;
+    font-weight: bold;
+    font-size: 11px;
+    padding: 1px 5px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+}
+
+.node-number-tooltip::before {
+    display: none;
+}
+
+.leaflet-popup-content {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
 }
 
 .results-table {
@@ -592,6 +566,7 @@ h1 {
     flex: 2;
     height: 500px;
     border-right: 2px solid #e2e8f0;
+    position: relative;
 }
 
 .modal-sidebar {
@@ -1415,7 +1390,7 @@ h1 {
     .map-container {
         height: 300px;
     }
-    
+
     .help-btn {
         width: 50px;
         height: 50px;
